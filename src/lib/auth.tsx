@@ -17,23 +17,33 @@ const initializeAdminUser = async () => {
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
   const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
 
+  console.log('🔍 Checking admin initialization...');
+
   if (!adminEmail || !adminPassword) {
-    console.warn('Admin credentials not configured in environment variables');
+    console.warn('⚠️  Admin credentials not configured in environment variables');
     return;
   }
 
+  console.log(`📧 Admin email: ${adminEmail}`);
+
   try {
     // Check if admin already exists
-    const { data: existingAdmin } = await supabase
+    const { data: existingAdmin, error: checkError } = await supabase
       .from('user_roles')
       .select('user_id')
       .eq('role', 'admin')
       .maybeSingle();
 
+    if (checkError) {
+      console.error('Error checking for existing admin:', checkError);
+    }
+
     if (existingAdmin) {
-      console.log('Admin user already exists');
+      console.log('✓ Admin user already exists');
       return;
     }
+
+    console.log('Creating new admin user...');
 
     // Try to sign up the admin user
     const { data, error } = await supabase.auth.signUp({
@@ -43,23 +53,56 @@ const initializeAdminUser = async () => {
         data: {
           full_name: 'Admin',
         },
+        emailRedirectTo: window.location.origin,
       },
     });
 
     if (error) {
+      console.error('Error during sign up:', error.message);
       // If user already exists in auth but not in roles, just set the role
-      if (error.message.includes('already registered')) {
-        console.log('Admin email already registered, checking role assignment');
-        // The trigger should have created the role, no need to do anything
+      if (error.message.includes('already registered') || error.message.includes('User already exists')) {
+        console.log('✓ Admin email already registered in auth');
+        
+        // Try to sign in to get the user ID
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: adminEmail,
+          password: adminPassword,
+        });
+
+        if (signInError) {
+          console.error('Could not sign in to verify admin:', signInError.message);
+          return;
+        }
+
+        if (signInData.user) {
+          // Ensure admin role is set
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .upsert({
+              user_id: signInData.user.id,
+              role: 'admin',
+            }, {
+              onConflict: 'user_id'
+            });
+
+          if (roleError) {
+            console.error('Error setting admin role:', roleError);
+          } else {
+            console.log('✓ Admin role confirmed');
+          }
+
+          await supabase.auth.signOut();
+        }
         return;
       }
-      console.error('Error creating admin user:', error);
+      console.error('Failed to create admin user:', error);
       return;
     }
 
     if (data.user) {
+      console.log('✓ Admin user created:', data.user.id);
       // Ensure admin role is set
-      await supabase
+      const { error: roleError } = await supabase
         .from('user_roles')
         .upsert({
           user_id: data.user.id,
@@ -68,7 +111,11 @@ const initializeAdminUser = async () => {
           onConflict: 'user_id'
         });
 
-      console.log('✓ Admin user initialized successfully');
+      if (roleError) {
+        console.error('Error setting admin role:', roleError);
+      } else {
+        console.log('✓ Admin user initialized successfully');
+      }
     }
   } catch (error) {
     console.error('Failed to initialize admin user:', error);
