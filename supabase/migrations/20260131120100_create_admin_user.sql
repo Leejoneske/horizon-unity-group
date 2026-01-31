@@ -1,0 +1,20 @@
+-- Create admin user setup script
+-- This should be run in Supabase SQL editor after running initial migrations
+-- It creates the admin user with email johnwanderi202@gmail.com
+
+-- Note: Supabase Auth users must be created through the Auth API or dashboard
+-- This migration documents the expected setup but cannot create Auth users directly
+-- 
+-- Manual steps needed:
+-- 1. Go to Supabase Dashboard -> Authentication -> Users
+-- 2. Click "Add user" 
+-- 3. Enter email: johnwanderi202@gmail.com
+-- 4. Enter password: @6ix9ine
+-- 5. Click "Create user"
+-- 
+-- The handle_new_user trigger will then automatically:
+-- - Create a profile for this user
+-- - Assign the admin role
+--
+-- Alternatively, use the Supabase CLI to create the user:
+-- supabase auth admin create-user --email johnwanderi202@gmail.com --password "@6ix9ine" --role authenticated
