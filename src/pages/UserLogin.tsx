@@ -8,14 +8,19 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Phone, Lock, Users } from 'lucide-react';
 
 export default function UserLogin() {
-  const [phone, setPhone] = useState('');
+  const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Detect if input is email or phone
+  const isEmailFormat = (input: string): boolean => {
+    return input.includes('@');
+  };
+
+  // Convert phone to email format for auth
   const formatPhoneEmail = (phone: string) => {
-    // Convert phone to email format for auth (Supabase workaround)
     const cleanPhone = phone.replace(/\D/g, '');
     return `${cleanPhone}@chamaa.local`;
   };
@@ -25,19 +30,43 @@ export default function UserLogin() {
     setIsLoading(true);
 
     try {
-      const email = formatPhoneEmail(phone);
-      const { error } = await supabase.auth.signInWithPassword({
+      // Determine if user entered email or phone
+      let email: string;
+      
+      if (isEmailFormat(credential)) {
+        // Admin login with email
+        email = credential;
+      } else {
+        // User login with phone
+        email = formatPhoneEmail(credential);
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
+
+      // Check if user is admin
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authData.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
 
       toast({
-        title: 'Welcome back!',
+        title: 'Welcome!',
         description: 'You have successfully logged in.',
       });
-      navigate('/dashboard');
+
+      // Route based on role
+      if (roleData) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Invalid credentials';
       toast({
@@ -59,26 +88,29 @@ export default function UserLogin() {
             <Users className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Chamaa</h1>
-          <p className="text-muted-foreground mt-1">Member Login</p>
+          <p className="text-muted-foreground mt-1">Login</p>
         </div>
 
         {/* Login Form */}
         <div className="finance-card">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="credential">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="phone"
-                  type="tel"
+                  id="credential"
+                  type="text"
                   placeholder="0712345678"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  value={credential}
+                  onChange={(e) => setCredential(e.target.value)}
                   className="pl-10"
                   required
                 />
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter your phone number or email to continue
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -115,13 +147,6 @@ export default function UserLogin() {
               Register
             </Link>
           </div>
-        </div>
-
-        {/* Admin Login Link */}
-        <div className="mt-6 text-center">
-          <Link to="/admin/login" className="text-sm text-muted-foreground hover:text-foreground">
-            Admin Login
-          </Link>
         </div>
       </div>
     </div>

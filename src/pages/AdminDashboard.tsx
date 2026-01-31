@@ -60,7 +60,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
-        navigate('/admin/login');
+        navigate('/login');
       } else if (!isAdmin) {
         navigate('/dashboard');
       }
@@ -116,7 +116,7 @@ export default function AdminDashboard() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/admin/login');
+    navigate('/login');
   };
 
   const handleAddAdmin = async () => {
