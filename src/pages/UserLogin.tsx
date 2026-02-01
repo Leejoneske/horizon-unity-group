@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Phone, Lock, Users } from 'lucide-react';
+import { Loader2, Phone, Lock, Wallet, ArrowRight } from 'lucide-react';
 
 export default function UserLogin() {
   const [credential, setCredential] = useState('');
@@ -14,12 +14,10 @@ export default function UserLogin() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Detect if input is email or phone
   const isEmailFormat = (input: string): boolean => {
     return input.includes('@');
   };
 
-  // Convert phone to email format for auth
   const formatPhoneEmail = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
     return `${cleanPhone}@horizonunit.local`;
@@ -30,14 +28,11 @@ export default function UserLogin() {
     setIsLoading(true);
 
     try {
-      // Determine if user entered email or phone
       let email: string;
       
       if (isEmailFormat(credential)) {
-        // Admin login with email
         email = credential;
       } else {
-        // User login with phone
         email = formatPhoneEmail(credential);
       }
 
@@ -50,7 +45,6 @@ export default function UserLogin() {
 
       console.log('✓ User authenticated:', authData.user.id);
 
-      // Check if user is admin
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -66,7 +60,6 @@ export default function UserLogin() {
         description: 'You have successfully logged in.',
       });
 
-      // Route based on role
       if (roleData) {
         console.log('→ Routing to admin dashboard');
         navigate('/admin/dashboard');
@@ -88,73 +81,86 @@ export default function UserLogin() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Users className="w-8 h-8 text-primary" />
+      {/* Background decoration */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl -z-10" />
+
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 mb-6">
+            <Wallet className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Horizon Unit</h1>
-          <p className="text-muted-foreground mt-1">Login</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Horizon Unit</h1>
+          <p className="text-muted-foreground">Welcome back, member</p>
         </div>
 
-        {/* Login Form */}
-        <div className="finance-card">
-          <form onSubmit={handleLogin} className="space-y-4">
+        {/* Login Card */}
+        <div className="finance-card mb-6">
+          <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="credential">Phone Number</Label>
+              <Label htmlFor="credential" className="text-sm font-semibold">Phone or Email</Label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
                 <Input
                   id="credential"
                   type="text"
-                  placeholder="0712345678"
+                  placeholder="0712345678 or admin@email.com"
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
-                  className="pl-10"
+                  className="pl-12 rounded-full py-6 text-base"
                   required
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Enter your phone number or email to continue
-              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-12 rounded-full py-6 text-base"
                   required
                 />
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full rounded-full py-6 text-base font-semibold bg-primary hover:bg-primary/90" 
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Signing in...
                 </>
               ) : (
-                'Sign In'
+                <>
+                  Sign In
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </>
               )}
             </Button>
           </form>
 
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-primary font-medium hover:underline">
-              Register
+          <div className="mt-6 pt-6 border-t border-border/50 text-center text-sm">
+            <p className="text-muted-foreground mb-2">New to Horizon Unit?</p>
+            <Link to="/register" className="text-primary font-semibold hover:text-primary/80 transition-colors">
+              Create an account
             </Link>
           </div>
         </div>
+
+        {/* Help text */}
+        <p className="text-center text-xs text-muted-foreground">
+          Members: use your phone number | Admins: use your email
+        </p>
       </div>
     </div>
   );

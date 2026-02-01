@@ -2,90 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Modern Fintech App - Clean Design System */
+/* Modern Fintech App - Material Design 3 + Extreme Roundedness */
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 220 20% 10%;
+    --background: 0 0% 97%;
+    --foreground: 220 13% 18%;
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 220 13% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+    --popover-foreground: 220 13% 18%;
     
-    /* Primary - Bright Orange (main CTA buttons like "Send") */
-    --primary: 14 100% 57%;
+    /* Primary - Bright Orange (#FF5722) */
+    --primary: 11 98% 53%;
     --primary-foreground: 0 0% 100%;
     
-    /* Secondary - Light gray (inactive buttons like "Request") */
-    --secondary: 220 10% 95%;
-    --secondary-foreground: 220 20% 20%;
+    /* Secondary - Light neutral */
+    --secondary: 220 10% 92%;
+    --secondary-foreground: 220 13% 18%;
     
-    --muted: 220 10% 92%;
-    --muted-foreground: 220 8% 50%;
+    --muted: 220 10% 88%;
+    --muted-foreground: 220 6% 48%;
     
-    /* Accent - Vibrant Green (promotional cards, icons) */
-    --accent: 152 65% 55%;
+    /* Accent - Vibrant Green (#4CAF50 to #5DD47A) */
+    --accent: 145 60% 54%;
     --accent-foreground: 0 0% 100%;
     
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
     /* Success - Green */
-    --success: 152 65% 55%;
+    --success: 145 60% 54%;
     --success-foreground: 0 0% 100%;
     
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     
-    --border: 220 10% 88%;
-    --input: 220 10% 90%;
-    --ring: 14 100% 57%;
+    --border: 220 8% 88%;
+    --input: 220 8% 90%;
+    --ring: 11 98% 53%;
     
-    /* Generous rounded corners for modern fintech look */
-    --radius: 1.25rem;
+    /* Extreme rounded corners for modern fintech look */
+    --radius: 1.75rem;
     
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 20% 20%;
-    --sidebar-primary: 14 100% 57%;
+    --sidebar-foreground: 220 13% 18%;
+    --sidebar-primary: 11 98% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 152 65% 95%;
-    --sidebar-accent-foreground: 152 65% 30%;
-    --sidebar-border: 220 10% 90%;
-    --sidebar-ring: 14 100% 57%;
+    --sidebar-accent: 145 60% 92%;
+    --sidebar-accent-foreground: 145 60% 28%;
+    --sidebar-border: 220 8% 90%;
+    --sidebar-ring: 11 98% 53%;
   }
   
   .dark {
-    --background: 220 20% 8%;
-    --foreground: 0 0% 95%;
-    --card: 220 18% 12%;
-    --card-foreground: 0 0% 95%;
-    --popover: 220 18% 12%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 14 100% 57%;
+    --background: 220 15% 10%;
+    --foreground: 0 0% 96%;
+    --card: 220 14% 15%;
+    --card-foreground: 0 0% 96%;
+    --popover: 220 14% 15%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 11 98% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 18%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 220 15% 20%;
-    --muted-foreground: 220 8% 60%;
-    --accent: 152 65% 50%;
+    --secondary: 220 12% 22%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 220 12% 24%;
+    --muted-foreground: 220 6% 60%;
+    --accent: 145 60% 48%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 45%;
+    --destructive: 0 84% 55%;
     --destructive-foreground: 0 0% 100%;
-    --success: 152 65% 50%;
+    --success: 145 60% 48%;
     --success-foreground: 0 0% 100%;
     --warning: 38 80% 50%;
     --warning-foreground: 0 0% 100%;
-    --border: 220 15% 22%;
-    --input: 220 15% 22%;
-    --ring: 14 100% 57%;
-    --sidebar-background: 220 20% 10%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 14 100% 57%;
+    --border: 220 12% 20%;
+    --input: 220 12% 22%;
+    --ring: 11 98% 53%;
+    --sidebar-background: 220 15% 12%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 11 98% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 152 65% 20%;
-    --sidebar-accent-foreground: 152 65% 70%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 14 100% 57%;
+    --sidebar-accent: 145 60% 20%;
+    --sidebar-accent-foreground: 145 60% 75%;
+    --sidebar-border: 220 12% 18%;
+    --sidebar-ring: 11 98% 53%;
   }
 }
 
@@ -103,47 +103,56 @@
 }
 
 @layer components {
-  /* Enhanced card styling with more generous rounded corners */
+  /* Enhanced card styling with extreme rounded corners */
   .finance-card {
-    @apply bg-card rounded-2xl border-0 shadow-sm p-6 transition-all duration-200;
-  }
-  .finance-card:hover {
-    @apply shadow-md;
+    @apply bg-card rounded-3xl border-0 shadow-soft p-6 transition-all duration-200 hover:shadow-soft-md;
   }
   
-  /* Promotional/feature cards with subtle backgrounds */
+  /* Promotional/feature cards with soft accent backgrounds */
   .promo-card {
-    @apply bg-accent/10 rounded-3xl p-6 transition-all duration-200;
+    @apply rounded-3xl p-6 transition-all duration-200 border;
+    background-color: hsl(var(--accent) / 0.08);
+    border-color: hsl(var(--accent) / 0.2);
   }
   
   .stat-value {
-    @apply text-3xl font-bold tracking-tight;
+    @apply text-4xl font-bold tracking-tight text-foreground;
   }
   .stat-label {
     @apply text-sm text-muted-foreground font-medium;
   }
   .balance-display {
-    @apply text-4xl font-bold text-foreground tracking-tight;
+    @apply text-5xl font-bold text-foreground tracking-tight;
   }
   
-  /* Amount styling with new color scheme */
+  /* Amount styling */
   .amount-positive {
-    @apply text-success font-semibold;
+    @apply text-accent font-semibold;
   }
   .amount-negative {
     @apply text-destructive font-semibold;
   }
   
-  /* Button variants matching the app */
+  /* Button styling - Pill shaped with high contrast */
   .btn-primary {
-    @apply bg-primary text-primary-foreground rounded-full px-8 py-4 font-semibold shadow-sm hover:shadow-md transition-all duration-200;
+    @apply bg-primary text-primary-foreground rounded-full px-8 py-3 font-semibold shadow-soft hover:shadow-soft-md transition-all duration-200 active:scale-95;
   }
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground rounded-full px-8 py-4 font-semibold hover:bg-secondary/80 transition-all duration-200;
+    @apply bg-secondary text-secondary-foreground rounded-full px-8 py-3 font-semibold hover:bg-secondary/80 transition-all duration-200;
   }
   
-  /* Action button cards (Add money, Account details style) */
+  /* Action card buttons (Add money, Account details style) */
   .action-card {
-    @apply bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-secondary/50 transition-all duration-200 cursor-pointer;
+    @apply bg-card rounded-3xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-secondary/30 transition-all duration-200 cursor-pointer shadow-soft border border-border;
+  }
+  
+  /* Header with minimal styling */
+  .app-header {
+    @apply sticky top-0 z-40 w-full bg-card/95 backdrop-blur-sm border-b border-border/50 shadow-soft;
+  }
+  
+  /* Icon button with rounded appearance */
+  .icon-btn {
+    @apply rounded-full p-3 hover:bg-secondary transition-all duration-200;
   }
 }

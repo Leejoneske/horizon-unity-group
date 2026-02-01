@@ -8,7 +8,7 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1rem",
       screens: {
         "2xl": "1400px",
       },
@@ -71,6 +71,13 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      spacing: {
+        "card-pad": "1.5rem",
+      },
+      boxShadow: {
+        soft: "0 2px 8px rgba(0, 0, 0, 0.04)",
+        "soft-md": "0 4px 12px rgba(0, 0, 0, 0.06)",
       },
       keyframes: {
         "accordion-down": {

@@ -11,7 +11,8 @@ import {
   Plus,
   CheckCircle2,
   Clock,
-  Wallet
+  Wallet,
+  Menu
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +53,6 @@ export default function UserDashboard() {
   }, [user, isAdmin, authLoading, navigate]);
 
   const fetchData = async () => {
-    // Fetch data from database
     try {
       const [contribRes, profileRes] = await Promise.all([
         supabase
@@ -80,7 +80,6 @@ export default function UserDashboard() {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      // Check if already contributed today
       const existingToday = contributions.find(
         c => c.contribution_date === today
       );
@@ -145,7 +144,12 @@ export default function UserDashboard() {
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Wallet className="w-6 h-6 text-primary" />
+          </div>
+          <p className="text-muted-foreground font-medium">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -153,90 +157,137 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <header className="app-header sticky top-0">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-semibold text-sm">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-sm">
                 {profile?.full_name?.charAt(0) || 'M'}
               </span>
             </div>
             <div>
               <p className="font-semibold text-foreground">{profile?.full_name || 'Member'}</p>
-              <p className="text-xs text-muted-foreground">Member</p>
+              <p className="text-xs text-muted-foreground">Horizon Unit</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+          <Button variant="ghost" size="icon" onClick={handleSignOut} className="rounded-full">
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Balance Card */}
-        <div className="finance-card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              <span className="font-medium text-foreground">Horizon Unit</span>
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        {/* Main Balance Card */}
+        <div className="finance-card bg-gradient-to-br from-card to-card/50">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-primary" />
             </div>
+            <span className="font-semibold text-foreground">Your Total Savings</span>
           </div>
-          <p className="stat-label mb-1">Your Total Savings</p>
-          <p className="balance-display">KES {totalContributions.toLocaleString()}</p>
+          <p className="balance-display mb-2">KES {totalContributions.toLocaleString()}</p>
+          <p className="text-muted-foreground text-sm">Across all contributions</p>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Quick Actions Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Add Contribution Card */}
           <button 
             onClick={handleAddContribution}
-            className="finance-card flex flex-col items-center gap-2 hover:border-primary/50"
+            className="action-card md:col-span-2 p-8 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 hover:border-primary/40"
           >
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Plus className="w-6 h-6 text-primary" />
+            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+              <Plus className="w-8 h-8 text-primary" />
             </div>
-            <span className="text-sm font-medium">Add Today</span>
+            <p className="text-lg font-semibold text-foreground">Add Today's Contribution</p>
+            <p className="text-sm text-muted-foreground mt-2">Record KES 100 for today</p>
           </button>
-          <div className="finance-card flex flex-col items-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-accent-foreground" />
-            </div>
-            <span className="text-sm font-medium">KES 100/day</span>
-          </div>
-        </div>
 
-        {/* Monthly Stats */}
-        <div className="finance-card">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <span className="font-medium">This Month</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="stat-label">Contributions</p>
-              <p className="text-2xl font-bold">{thisMonthContributions.length}</p>
+          {/* This Month Stats */}
+          <div className="finance-card">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="w-5 h-5 text-accent" />
+              <span className="font-medium text-foreground">This Month</span>
             </div>
-            <div>
-              <p className="stat-label">Total Saved</p>
-              <p className="text-2xl font-bold amount-positive">KES {thisMonthTotal.toLocaleString()}</p>
+            <div className="space-y-4">
+              <div>
+                <p className="stat-label mb-1">Contributions</p>
+                <p className="stat-value">{thisMonthContributions.length}</p>
+              </div>
+              <div>
+                <p className="stat-label mb-1">Total Saved</p>
+                <p className="stat-value amount-positive">KES {thisMonthTotal.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contribution Rate */}
+          <div className="finance-card">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-5 h-5 text-accent" />
+              <span className="font-medium text-foreground">Consistency</span>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <p className="stat-label mb-1">Daily Rate</p>
+                <p className="stat-value">KES 100</p>
+              </div>
+              <div>
+                <p className="stat-label mb-1">Days Active</p>
+                <p className="stat-value text-accent">{contributions.length}</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Calendar View */}
         <div className="finance-card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              <span className="font-medium">{format(currentMonth, 'MMMM yyyy')}</span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-accent" />
+              </div>
+              <span className="font-semibold text-lg">{format(currentMonth, 'MMMM yyyy')}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="rounded-full"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+              >
+                Prev
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="rounded-full"
+                onClick={() => setCurrentMonth(new Date())}
+              >
+                Today
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="rounded-full"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+              >
+                Next
+              </Button>
             </div>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-              <div key={i} className="text-muted-foreground font-medium py-1">{day}</div>
+
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 gap-2 mb-4">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+              <div key={i} className="text-center text-sm font-semibold text-muted-foreground py-2">
+                {day}
+              </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1">
-            {/* Empty cells for alignment */}
+
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-2">
             {Array.from({ length: startOfMonth(currentMonth).getDay() }).map((_, i) => (
               <div key={`empty-${i}`} className="aspect-square" />
             ))}
@@ -246,12 +297,12 @@ export default function UserDashboard() {
               return (
                 <div
                   key={day.toISOString()}
-                  className={`aspect-square rounded-lg flex items-center justify-center text-sm ${
+                  className={`aspect-square rounded-2xl flex items-center justify-center font-semibold text-sm transition-all duration-200 ${
                     contributed 
-                      ? 'bg-primary text-primary-foreground' 
+                      ? 'bg-primary text-primary-foreground shadow-soft' 
                       : isToday 
-                        ? 'bg-accent text-accent-foreground border-2 border-primary' 
-                        : 'bg-muted text-muted-foreground'
+                        ? 'bg-accent/20 text-accent border-2 border-accent' 
+                        : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                   }`}
                 >
                   {format(day, 'd')}
@@ -263,33 +314,40 @@ export default function UserDashboard() {
 
         {/* Recent Activity */}
         <div className="finance-card">
-          <h3 className="font-medium mb-4">Recent Activity</h3>
+          <h3 className="font-semibold text-lg mb-6 flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-primary" />
+            Recent Activity
+          </h3>
           {contributions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No contributions yet. Start saving today!
-            </p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <Wallet className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground font-medium">No contributions yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Start saving today by adding your first contribution!</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {contributions.slice(0, 10).map((contribution) => (
-                <div key={contribution.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      contribution.status === 'completed' ? 'bg-primary/10' : 'bg-warning/10'
+            <div className="space-y-3 divide-y divide-border/50">
+              {contributions.slice(0, 15).map((contribution) => (
+                <div key={contribution.id} className="flex items-center justify-between py-4 first:pt-0">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      contribution.status === 'completed' ? 'bg-accent/15' : 'bg-warning/15'
                     }`}>
                       {contribution.status === 'completed' ? (
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                        <CheckCircle2 className="w-6 h-6 text-accent" />
                       ) : (
-                        <Clock className="w-4 h-4 text-warning" />
+                        <Clock className="w-6 h-6 text-warning" />
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Daily Contribution</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="font-semibold text-foreground">Daily Contribution</p>
+                      <p className="text-sm text-muted-foreground">
                         {format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}
                       </p>
                     </div>
                   </div>
-                  <span className="font-semibold amount-positive">
+                  <span className="font-bold text-lg amount-positive">
                     +KES {Number(contribution.amount).toLocaleString()}
                   </span>
                 </div>

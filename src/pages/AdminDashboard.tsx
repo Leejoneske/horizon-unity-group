@@ -11,7 +11,8 @@ import {
   LogOut,
   CheckCircle2,
   Clock,
-  UserPlus
+  UserPlus,
+  BarChart3
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -76,12 +77,10 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      // Fetch all profiles with their contribution totals
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*');
 
-      // Fetch all contributions
       const { data: contributionsData } = await supabase
         .from('contributions')
         .select('*')
@@ -98,7 +97,6 @@ export default function AdminDashboard() {
         });
         setMembers(membersWithStats);
 
-        // Get recent contributions with profile names
         const recentWithNames = contributionsData.slice(0, 20).map(c => {
           const profile = profilesData.find(p => p.user_id === c.user_id);
           return {
@@ -123,8 +121,6 @@ export default function AdminDashboard() {
   const handleAddAdmin = async () => {
     setIsAddingMember(true);
     try {
-      // This would typically invite a new admin
-      // For now, just show a message
       toast({
         title: 'Feature coming soon',
         description: 'Admin invitation system will be available soon.',
@@ -151,11 +147,17 @@ export default function AdminDashboard() {
 
   const totalGroupSavings = members.reduce((sum, m) => sum + m.total_contributions, 0);
   const thisMonthTotal = thisMonthContribs.reduce((sum, c) => sum + Number(c.amount), 0);
+  const avgPerMember = members.length > 0 ? totalGroupSavings / members.length : 0;
 
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Shield className="w-6 h-6 text-primary" />
+          </div>
+          <p className="text-muted-foreground font-medium">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -163,71 +165,92 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <header className="app-header sticky top-0">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <p className="font-semibold text-foreground">Admin Dashboard</p>
               <p className="text-xs text-muted-foreground">Horizon Unit Management</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+          <Button variant="ghost" size="icon" onClick={handleSignOut} className="rounded-full">
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4 space-y-6">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="finance-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-primary" />
-              <span className="stat-label">Members</span>
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        {/* Main Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* Total Group Savings */}
+          <div className="finance-card md:col-span-2 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-primary" />
+              </div>
+              <span className="font-medium text-foreground">Group Total Savings</span>
             </div>
-            <p className="stat-value">{members.length}</p>
+            <p className="balance-display mb-1 text-primary">KES {totalGroupSavings.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground">All members combined</p>
           </div>
-          <div className="finance-card">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              <span className="stat-label">Total Savings</span>
+
+          {/* Active Members */}
+          <div className="finance-card bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                <Users className="w-5 h-5 text-accent" />
+              </div>
+              <span className="font-medium text-muted-foreground">Active Members</span>
             </div>
-            <p className="stat-value text-xl lg:text-3xl">KES {totalGroupSavings.toLocaleString()}</p>
+            <p className="stat-value text-accent">{members.length}</p>
+            <p className="text-sm text-muted-foreground">Group members</p>
           </div>
+
+          {/* This Month */}
           <div className="finance-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-primary" />
-              <span className="stat-label">This Month</span>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <span className="font-medium text-muted-foreground">This Month</span>
             </div>
-            <p className="stat-value text-xl lg:text-3xl">KES {thisMonthTotal.toLocaleString()}</p>
+            <p className="stat-value">KES {thisMonthTotal.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground">{thisMonthContribs.length} contributions</p>
           </div>
+
+          {/* Average Per Member */}
           <div className="finance-card">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              <span className="stat-label">Contributions</span>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <span className="font-medium text-muted-foreground">Avg Per Member</span>
             </div>
-            <p className="stat-value">{thisMonthContribs.length}</p>
+            <p className="stat-value">KES {avgPerMember.toLocaleString()}</p>
+            <p className="text-sm text-muted-foreground">Average savings</p>
           </div>
         </div>
 
-        {/* Members List */}
+        {/* Members Table */}
         <div className="finance-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-lg flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center">
+                <Users className="w-5 h-5 text-accent" />
+              </div>
               Members
             </h3>
             <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
+                <Button size="sm" className="rounded-full bg-primary hover:bg-primary/90">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Add Admin
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="rounded-3xl">
                 <DialogHeader>
                   <DialogTitle>Add New Admin</DialogTitle>
                   <DialogDescription>
@@ -243,9 +266,10 @@ export default function AdminDashboard() {
                       placeholder="admin@example.com"
                       value={newMemberEmail}
                       onChange={(e) => setNewMemberEmail(e.target.value)}
+                      className="rounded-full"
                     />
                   </div>
-                  <Button onClick={handleAddAdmin} disabled={isAddingMember} className="w-full">
+                  <Button onClick={handleAddAdmin} disabled={isAddingMember} className="w-full rounded-full">
                     Send Invitation
                   </Button>
                 </div>
@@ -254,37 +278,42 @@ export default function AdminDashboard() {
           </div>
           
           {members.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No members yet.</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground font-medium">No members yet</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Member</th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Phone</th>
-                    <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Contributions</th>
-                    <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Total Saved</th>
+                    <th className="text-left py-4 px-4 text-sm font-semibold text-muted-foreground">Member</th>
+                    <th className="text-left py-4 px-4 text-sm font-semibold text-muted-foreground">Phone</th>
+                    <th className="text-right py-4 px-4 text-sm font-semibold text-muted-foreground">Contributions</th>
+                    <th className="text-right py-4 px-4 text-sm font-semibold text-muted-foreground">Total Saved</th>
                   </tr>
                 </thead>
                 <tbody>
                   {members.map((member) => (
-                    <tr key={member.id} className="border-b border-border last:border-0">
-                      <td className="py-3 px-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-xs font-medium text-primary">
+                    <tr key={member.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors last:border-0">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/15 to-primary/10 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-primary">
                               {member.full_name?.charAt(0) || 'M'}
                             </span>
                           </div>
                           <span className="font-medium">{member.full_name}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-2 text-muted-foreground text-sm">
+                      <td className="py-4 px-4 text-muted-foreground">
                         {member.phone_number || '-'}
                       </td>
-                      <td className="py-3 px-2 text-right">{member.contribution_count}</td>
-                      <td className="py-3 px-2 text-right font-semibold amount-positive">
-                        KES {member.total_contributions.toLocaleString()}
+                      <td className="py-4 px-4 text-right font-medium">{member.contribution_count}</td>
+                      <td className="py-4 px-4 text-right">
+                        <span className="font-bold amount-positive">KES {member.total_contributions.toLocaleString()}</span>
                       </td>
                     </tr>
                   ))}
@@ -296,37 +325,44 @@ export default function AdminDashboard() {
 
         {/* Recent Contributions */}
         <div className="finance-card">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold text-lg mb-6 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-muted-foreground" />
+            </div>
             Recent Contributions
           </h3>
           
           {recentContributions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No contributions yet.</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground font-medium">No contributions yet</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {recentContributions.slice(0, 15).map((contribution) => (
-                <div key={contribution.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      contribution.status === 'completed' ? 'bg-primary/10' : 'bg-warning/10'
+            <div className="space-y-2 divide-y divide-border/50">
+              {recentContributions.slice(0, 20).map((contribution) => (
+                <div key={contribution.id} className="flex items-center justify-between py-4 first:pt-0">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      contribution.status === 'completed' ? 'bg-accent/15' : 'bg-warning/15'
                     }`}>
                       {contribution.status === 'completed' ? (
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                        <CheckCircle2 className="w-6 h-6 text-accent" />
                       ) : (
-                        <Clock className="w-4 h-4 text-warning" />
+                        <Clock className="w-6 h-6 text-warning" />
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">
+                      <p className="font-semibold text-foreground">
                         {contribution.profiles?.full_name || 'Unknown Member'}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}
                       </p>
                     </div>
                   </div>
-                  <span className="font-semibold amount-positive">
+                  <span className="font-bold text-lg amount-positive flex-shrink-0">
                     +KES {Number(contribution.amount).toLocaleString()}
                   </span>
                 </div>
