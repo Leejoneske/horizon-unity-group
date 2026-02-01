@@ -115,9 +115,7 @@ export default function UserLogin() {
                   required
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Enter your phone number or email to continue
-              </p>
+
             </div>
 
             <div className="space-y-2">
