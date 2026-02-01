@@ -75,18 +75,28 @@ const initializeAdminUser = async () => {
         }
 
         if (signInData.user) {
-          // Ensure admin role is set
-          const { error: roleError } = await supabase
+          // Check if admin role already exists
+          const { data: existingRole } = await supabase
             .from('user_roles')
-            .upsert({
-              user_id: signInData.user.id,
-              role: 'admin',
-            }, {
-              onConflict: 'user_id'
-            });
+            .select('id')
+            .eq('user_id', signInData.user.id)
+            .eq('role', 'admin')
+            .maybeSingle();
 
-          if (roleError) {
-            console.error('Error setting admin role:', roleError);
+          if (!existingRole) {
+            // Insert admin role
+            const { error: roleError } = await supabase
+              .from('user_roles')
+              .insert({
+                user_id: signInData.user.id,
+                role: 'admin',
+              });
+
+            if (roleError) {
+              console.error('Error setting admin role:', roleError);
+            } else {
+              console.log('✓ Admin role set');
+            }
           } else {
             console.log('✓ Admin role confirmed');
           }
@@ -101,14 +111,12 @@ const initializeAdminUser = async () => {
 
     if (data.user) {
       console.log('✓ Admin user created:', data.user.id);
-      // Ensure admin role is set
+      // Insert admin role
       const { error: roleError } = await supabase
         .from('user_roles')
-        .upsert({
+        .insert({
           user_id: data.user.id,
           role: 'admin',
-        }, {
-          onConflict: 'user_id'
         });
 
       if (roleError) {
