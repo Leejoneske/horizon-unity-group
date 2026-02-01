@@ -178,7 +178,7 @@ export default function UserDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              <span className="font-medium text-foreground">Chamaa</span>
+              <span className="font-medium text-foreground">Horizon Unit</span>
             </div>
           </div>
           <p className="stat-label mb-1">Your Total Savings</p>

@@ -22,7 +22,7 @@ export default function UserLogin() {
   // Convert phone to email format for auth
   const formatPhoneEmail = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    return `${cleanPhone}@chamaa.local`;
+    return `${cleanPhone}@horizonunit.local`;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -94,7 +94,7 @@ export default function UserLogin() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <Users className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Chamaa</h1>
+          <h1 className="text-2xl font-bold text-foreground">Horizon Unit</h1>
           <p className="text-muted-foreground mt-1">Login</p>
         </div>
 

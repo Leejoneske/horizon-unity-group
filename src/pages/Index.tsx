@@ -45,7 +45,7 @@ export default function Index() {
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Users className="w-4 h-4 text-primary" />
             </div>
-            <span className="font-semibold text-lg">Chamaa</span>
+            <span className="font-semibold text-lg">Horizon Unit</span>
           </div>
           <div className="flex items-center gap-2">
             <Link to="/login">
@@ -68,7 +68,7 @@ export default function Index() {
             Save Together,<br />Grow Together
           </h1>
           <p className="text-lg text-muted-foreground max-w-md mx-auto mb-8">
-            Track your group savings with ease. Simple, secure, and transparent savings management for your chamaa.
+            Track your group savings with ease. Simple, secure, and transparent savings management for your group.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/register">
@@ -154,7 +154,7 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t border-border py-6 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Chamaa Savings Group</p>
+          <p>Horizon Unit Group</p>
         </div>
       </footer>
     </div>

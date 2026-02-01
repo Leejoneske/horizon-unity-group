@@ -171,7 +171,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="font-semibold text-foreground">Admin Dashboard</p>
-              <p className="text-xs text-muted-foreground">Chamaa Management</p>
+              <p className="text-xs text-muted-foreground">Horizon Unit Management</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={handleSignOut}>

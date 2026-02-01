@@ -18,7 +18,7 @@ export default function UserRegister() {
 
   const formatPhoneEmail = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    return `${cleanPhone}@chamaa.local`;
+    return `${cleanPhone}@horizonunit.local`;
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -64,7 +64,7 @@ export default function UserRegister() {
 
       toast({
         title: 'Account created!',
-        description: 'Welcome to Chamaa. You can now log in.',
+        description: 'Welcome to Horizon Unit. You can now log in.',
       });
       navigate('/login');
     } catch (error) {
@@ -87,7 +87,7 @@ export default function UserRegister() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <Users className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Join Chamaa</h1>
+          <h1 className="text-2xl font-bold text-foreground">Join Horizon Unit</h1>
           <p className="text-muted-foreground mt-1">Create your member account</p>
         </div>
 

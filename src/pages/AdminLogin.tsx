@@ -65,7 +65,7 @@ export default function AdminLogin() {
             <Shield className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Admin Portal</h1>
-          <p className="text-muted-foreground mt-1">Chamaa Management</p>
+          <p className="text-muted-foreground mt-1">Horizon Unit Management</p>
         </div>
 
         {/* Login Form */}
