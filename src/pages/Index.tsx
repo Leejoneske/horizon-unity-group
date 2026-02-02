@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, Shield, ArrowRight, Users } from 'lucide-react';
+import { Users, TrendingUp, Shield, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import logo from '@/assets/logo.png';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -43,7 +42,9 @@ export default function Index() {
       <header className="bg-card border-b border-border px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="Horizon Unit" className="w-8 h-8 object-contain" />
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Users className="w-4 h-4 text-primary" />
+            </div>
             <span className="font-semibold text-lg">Horizon Unit</span>
           </div>
           <div className="flex items-center gap-2">
@@ -60,7 +61,9 @@ export default function Index() {
       {/* Hero Section */}
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="text-center mb-12">
-          <img src={logo} alt="Horizon Unit" className="w-20 h-20 object-contain mx-auto mb-6" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 mb-6">
+            <Users className="w-10 h-10 text-primary" />
+          </div>
           <h1 className="text-4xl font-bold text-foreground mb-4">
             Save Together,<br />Grow Together
           </h1>

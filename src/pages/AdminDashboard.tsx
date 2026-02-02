@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { 
+  Shield, 
   Users, 
   TrendingUp, 
   Calendar, 
@@ -14,7 +15,6 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import logo from '@/assets/logo.png';
 import {
   Dialog,
   DialogContent,
@@ -166,7 +166,9 @@ export default function AdminDashboard() {
       <header className="bg-card border-b border-border px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="Horizon Unit" className="w-10 h-10 object-contain" />
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-primary" />
+            </div>
             <div>
               <p className="font-semibold text-foreground">Admin Dashboard</p>
               <p className="text-xs text-muted-foreground">Horizon Unit Management</p>

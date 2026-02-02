@@ -14,90 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_messages: {
-        Row: {
-          admin_id: string
-          created_at: string
-          id: string
-          is_read: boolean
-          message: string
-          message_type: string
-          user_id: string
-        }
-        Insert: {
-          admin_id: string
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          message: string
-          message_type?: string
-          user_id: string
-        }
-        Update: {
-          admin_id?: string
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          message?: string
-          message_type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      admin_settings: {
-        Row: {
-          id: string
-          setting_key: string
-          setting_value: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          id?: string
-          setting_key: string
-          setting_value: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          id?: string
-          setting_key?: string
-          setting_value?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
-      balance_adjustments: {
-        Row: {
-          adjustment_type: string
-          admin_id: string
-          amount: number
-          created_at: string
-          id: string
-          reason: string | null
-          user_id: string
-        }
-        Insert: {
-          adjustment_type: string
-          admin_id: string
-          amount: number
-          created_at?: string
-          id?: string
-          reason?: string | null
-          user_id: string
-        }
-        Update: {
-          adjustment_type?: string
-          admin_id?: string
-          amount?: number
-          created_at?: string
-          id?: string
-          reason?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       contributions: {
         Row: {
           amount: number
@@ -130,37 +46,25 @@ export type Database = {
       }
       profiles: {
         Row: {
-          balance_adjustment: number
-          balance_visible: boolean
           created_at: string
-          daily_contribution_amount: number
           full_name: string
           id: string
-          missed_contributions: number
           phone_number: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          balance_adjustment?: number
-          balance_visible?: boolean
           created_at?: string
-          daily_contribution_amount?: number
           full_name: string
           id?: string
-          missed_contributions?: number
           phone_number?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          balance_adjustment?: number
-          balance_visible?: boolean
           created_at?: string
-          daily_contribution_amount?: number
           full_name?: string
           id?: string
-          missed_contributions?: number
           phone_number?: string | null
           updated_at?: string
           user_id?: string

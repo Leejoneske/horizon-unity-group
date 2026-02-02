@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import { Loader2, Mail, Lock, Shield } from 'lucide-react';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -62,7 +61,9 @@ export default function AdminLogin() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src={logo} alt="Horizon Unit" className="w-16 h-16 object-contain mx-auto mb-4" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+            <Shield className="w-8 h-8 text-primary" />
+          </div>
           <h1 className="text-2xl font-bold text-foreground">Admin Portal</h1>
           <p className="text-muted-foreground mt-1">Horizon Unit Management</p>
         </div>
