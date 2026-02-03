@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.33.0";
 
-// TextLocal API Configuration
-const TEXTLOCAL_API_KEY = Deno.env.get("TEXTLOCAL_API_KEY") || "aky_39999NgB2tdhoSkk27QnUzSbQdO";
+// TextLocal API Configuration - from environment variables
+const TEXTLOCAL_API_KEY = Deno.env.get("TEXTLOCAL_API_KEY");
 const TEXTLOCAL_API_URL = "https://api.textlocal.in/send/";
 
 interface SMSPayload {
@@ -17,33 +17,39 @@ const formatPhoneNumber = (phoneNumber: string): string | null => {
   // Remove all non-digits
   const cleanNumber = phoneNumber.replace(/\D/g, "");
   
-  if (!cleanNumber || cleanNumber.length < 10) {
+  if (!cleanNumber || cleanNumber.length < 9) {
     console.error("Invalid phone number format:", phoneNumber);
     return null;
   }
 
   // Check if country code already present
   if (cleanNumber.startsWith("254")) {
-    // Kenya
+    // Kenya - valid
     return cleanNumber;
   } else if (cleanNumber.startsWith("91")) {
-    // India
+    // India - valid
     return cleanNumber;
-  } else if (cleanNumber.startsWith("1")) {
-    // USA/Canada
-    return "1" + cleanNumber;
+  } else if (cleanNumber.startsWith("1") && cleanNumber.length === 11) {
+    // USA/Canada - valid (1 + 10 digits)
+    return cleanNumber;
   } else {
     // Default to Kenya (254) if no country code detected
-    // Assumes 10-digit Kenyan number or removes leading 0
     let formatted = cleanNumber;
     if (formatted.startsWith("0")) {
       formatted = formatted.substring(1);
     }
-    if (formatted.length === 9) {
-      return "254" + formatted;
-    } else if (formatted.length === 10) {
+    
+    // Expected lengths for Kenya are 9 or 10 digits (without country code)
+    if (formatted.length === 9 || formatted.length === 10) {
       return "254" + formatted;
     }
+    
+    // If it's 10 digits starting with 7, 1, or 2 (common Kenya prefixes), assume Kenya
+    if (formatted.length === 10 && ["7", "1", "2"].includes(formatted.charAt(0))) {
+      return "254" + formatted;
+    }
+    
+    console.error("Could not determine country code for:", phoneNumber);
     return null;
   }
 };
@@ -53,6 +59,12 @@ const sendViaTextLocal = async (
   message: string
 ): Promise<boolean> => {
   try {
+    // Check if API key is configured
+    if (!TEXTLOCAL_API_KEY) {
+      console.error("TextLocal API key not configured");
+      return false;
+    }
+
     const formattedNumber = formatPhoneNumber(phoneNumber);
     if (!formattedNumber) {
       console.error("Failed to format phone number:", phoneNumber);
@@ -89,20 +101,6 @@ const sendViaTextLocal = async (
   }
 };
 
-// Fallback SMS provider (using generic HTTP API)
-const sendViaSMSProvider = async (
-  phoneNumber: string,
-  message: string
-): Promise<boolean> => {
-  try {
-    // Fallback to TextLocal if not already used
-    return await sendViaTextLocal(phoneNumber, message);
-  } catch (error) {
-    console.error("SMS provider error:", error);
-    return false;
-  }
-};
-
 serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
@@ -121,15 +119,31 @@ serve(async (req) => {
       );
     }
 
-    // Send SMS via TextLocal
-    const success = await sendViaTextLocal(phoneNumber, message);
+    // Check if SMS service is configured
+    if (!TEXTLOCAL_API_KEY) {
+      console.warn("SMS service not configured - API key missing");
+      // Still log the attempt even if SMS is not available
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
 
-    if (!success) {
+      await supabase.from("sms_logs").insert({
+        user_id: userId,
+        phone_number: phoneNumber,
+        message,
+        message_type: messageType,
+        status: "failed",
+      }).catch(err => console.error("Failed to log SMS:", err));
+
       return new Response(
-        JSON.stringify({ error: "Failed to send SMS" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ error: "SMS service not available" }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    // Send SMS via TextLocal
+    const success = await sendViaTextLocal(phoneNumber, message);
 
     // Log the SMS in the database
     const supabase = createClient(
@@ -142,8 +156,15 @@ serve(async (req) => {
       phone_number: phoneNumber,
       message,
       message_type: messageType,
-      status: "sent",
-    });
+      status: success ? "sent" : "failed",
+    }).catch(err => console.error("Failed to log SMS:", err));
+
+    if (!success) {
+      return new Response(
+        JSON.stringify({ error: "Failed to send SMS", logged: true }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "SMS sent successfully" }),
@@ -155,7 +176,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

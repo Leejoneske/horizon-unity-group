@@ -153,6 +153,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Handle auth errors - if session refresh fails, clear it
+        if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+          setIsLoading(true);
+          setSession(null);
+          setUser(null);
+          setIsAdmin(false);
+          setIsLoading(false);
+          return;
+        }
+
         setIsLoading(true);
         setSession(session);
         setUser(session?.user ?? null);
@@ -173,25 +183,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Then get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoading(true);
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Then get initial session with error handling
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        setIsLoading(true);
+        
+        // If there's an error getting session, clear it and don't proceed
+        if (error) {
+          console.error('Error getting session:', error);
+          setSession(null);
+          setUser(null);
+          setIsAdmin(false);
+          setIsLoading(false);
+          return;
+        }
 
-      if (session?.user) {
-        fetchIsAdmin(session.user.id)
-          .then((admin) => setIsAdmin(admin))
-          .catch((e) => {
-            console.error('Error checking admin role:', e);
-            setIsAdmin(false);
-          })
-          .finally(() => setIsLoading(false));
-      } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          fetchIsAdmin(session.user.id)
+            .then((admin) => setIsAdmin(admin))
+            .catch((e) => {
+              console.error('Error checking admin role:', e);
+              setIsAdmin(false);
+            })
+            .finally(() => setIsLoading(false));
+        } else {
+          setIsAdmin(false);
+          setIsLoading(false);
+        }
+      })
+      .catch((e) => {
+        console.error('Failed to get session:', e);
+        setSession(null);
+        setUser(null);
         setIsAdmin(false);
         setIsLoading(false);
-      }
-    });
+      });
 
     return () => subscription.unsubscribe();
   }, []);

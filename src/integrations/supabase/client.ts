@@ -8,9 +8,48 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Custom storage handler to validate session before restoring
+const createCustomStorage = () => {
+  return {
+    getItem: (key: string) => {
+      try {
+        const item = localStorage.getItem(key);
+        // If getting session, validate it before returning
+        if (key === 'sb-lelpqanascdeeqfrdhoj-auth-token' && item) {
+          const parsed = JSON.parse(item);
+          // Check if session is corrupted or expired
+          if (!parsed || !parsed.session || !parsed.session.access_token) {
+            console.warn('Invalid session detected in storage, clearing...');
+            localStorage.removeItem(key);
+            return null;
+          }
+        }
+        return item;
+      } catch (e) {
+        console.error('Error reading from storage:', e);
+        return null;
+      }
+    },
+    setItem: (key: string, value: string) => {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        console.error('Error writing to storage:', e);
+      }
+    },
+    removeItem: (key: string) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.error('Error removing from storage:', e);
+      }
+    },
+  };
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: createCustomStorage(),
     persistSession: true,
     autoRefreshToken: true,
   }

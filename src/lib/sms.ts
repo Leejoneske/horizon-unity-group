@@ -7,8 +7,8 @@ export interface SMSPayload {
   messageType: 'missed_contribution' | 'successful_contribution' | 'admin_notification';
 }
 
-// TextLocal API Configuration
-const TEXTLOCAL_API_KEY = 'aky_39999NgB2tdhoSkk27QnUzSbQdO';
+// TextLocal API Configuration - should be in environment variables
+const TEXTLOCAL_API_KEY = import.meta.env.VITE_TEXTLOCAL_API_KEY || '';
 const TEXTLOCAL_API_URL = 'https://api.textlocal.in/send/';
 
 // Format phone number for different countries
@@ -16,39 +16,51 @@ const formatPhoneNumber = (phoneNumber: string): string | null => {
   // Remove all non-digits
   const cleanNumber = phoneNumber.replace(/\D/g, '');
   
-  if (!cleanNumber || cleanNumber.length < 10) {
+  if (!cleanNumber || cleanNumber.length < 9) {
     console.error('Invalid phone number format:', phoneNumber);
     return null;
   }
 
   // Check if country code already present
   if (cleanNumber.startsWith('254')) {
-    // Kenya
+    // Kenya - valid
     return cleanNumber;
   } else if (cleanNumber.startsWith('91')) {
-    // India
+    // India - valid
     return cleanNumber;
-  } else if (cleanNumber.startsWith('1')) {
-    // USA/Canada
-    return '1' + cleanNumber;
+  } else if (cleanNumber.startsWith('1') && cleanNumber.length === 11) {
+    // USA/Canada - valid (1 + 10 digits)
+    return cleanNumber;
   } else {
     // Default to Kenya (254) if no country code detected
-    // Assumes 10-digit Kenyan number or removes leading 0
     let formatted = cleanNumber;
     if (formatted.startsWith('0')) {
       formatted = formatted.substring(1);
     }
-    if (formatted.length === 9) {
-      return '254' + formatted;
-    } else if (formatted.length === 10) {
+    
+    // Expected lengths for Kenya are 9 or 10 digits (without country code)
+    if (formatted.length === 9 || formatted.length === 10) {
       return '254' + formatted;
     }
+    
+    // If it's 10 digits starting with 7, 1, or 2 (common Kenya prefixes), assume Kenya
+    if (formatted.length === 10 && ['7', '1', '2'].includes(formatted.charAt(0))) {
+      return '254' + formatted;
+    }
+    
+    console.error('Could not determine country code for:', phoneNumber);
     return null;
   }
 };
 
 export const sendSMS = async (payload: SMSPayload): Promise<boolean> => {
   try {
+    // Check if SMS is enabled in environment
+    if (!TEXTLOCAL_API_KEY) {
+      console.warn('SMS service not configured - API key missing');
+      return false;
+    }
+
     const formattedNumber = formatPhoneNumber(payload.phoneNumber);
     
     if (!formattedNumber) {
@@ -75,6 +87,17 @@ export const sendSMS = async (payload: SMSPayload): Promise<boolean> => {
 
     if (!response.ok || !data.success) {
       console.error('TextLocal API Error:', data);
+      // Log failed SMS attempt
+      await supabase
+        .from('sms_logs')
+        .insert({
+          user_id: payload.userId,
+          phone_number: payload.phoneNumber,
+          message: payload.message,
+          message_type: payload.messageType,
+          status: 'failed'
+        })
+        .catch(err => console.error('Failed to log SMS error:', err));
       return false;
     }
 
@@ -95,6 +118,17 @@ export const sendSMS = async (payload: SMSPayload): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Failed to send SMS via TextLocal:', error);
+    // Log the error
+    await supabase
+      .from('sms_logs')
+      .insert({
+        user_id: payload.userId,
+        phone_number: payload.phoneNumber,
+        message: payload.message,
+        message_type: payload.messageType,
+        status: 'failed'
+      })
+      .catch(err => console.error('Failed to log SMS error:', err));
     return false;
   }
 };

@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { CheckCircle2, Clock } from 'lucide-react';
+import { CheckCircle2, Clock, EyeOff } from 'lucide-react';
 
 interface Contribution {
   id: string;
@@ -9,6 +9,7 @@ interface Contribution {
   created_at: string;
   profiles: {
     full_name: string;
+    balance_visible: boolean;
   } | null;
 }
 
@@ -49,9 +50,16 @@ export default function RecentContributions({ contributions }: RecentContributio
                   </p>
                 </div>
               </div>
-              <span className="font-semibold amount-positive">
-                +KES {Number(contribution.amount).toLocaleString()}
-              </span>
+              {contribution.profiles?.balance_visible ? (
+                <span className="font-semibold amount-positive">
+                  +KES {Number(contribution.amount).toLocaleString()}
+                </span>
+              ) : (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <EyeOff className="w-4 h-4" />
+                  <span className="text-sm">Hidden</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

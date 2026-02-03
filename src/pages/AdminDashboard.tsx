@@ -101,7 +101,7 @@ export default function AdminDashboard() {
           const profile = profilesData.find(p => p.user_id === c.user_id);
           return {
             ...c,
-            profiles: profile ? { full_name: profile.full_name } : null
+            profiles: profile ? { full_name: profile.full_name, balance_visible: profile.balance_visible } : null
           };
         });
         setRecentContributions(recentWithNames);
