@@ -545,3 +545,8 @@ export default function UserDashboard() {
             )}
           </div>
         </div>
+
+      </main>
+    </div>
+  );
+}

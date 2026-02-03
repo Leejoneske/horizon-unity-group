@@ -147,8 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Initialize admin on app load
-    initializeAdminUser();
+    // Initialize admin on app load (non-blocking - run in background)
+    initializeAdminUser().catch(err => console.error('Admin initialization error:', err));
 
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -186,8 +186,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Then get initial session with error handling
     supabase.auth.getSession()
       .then(({ data: { session }, error }) => {
-        setIsLoading(true);
-        
         // If there's an error getting session, clear it and don't proceed
         if (error) {
           console.error('Error getting session:', error);
