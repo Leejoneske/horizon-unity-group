@@ -10,9 +10,14 @@ import {
   Plus,
   CheckCircle2,
   Clock,
-  Wallet
+  Wallet,
+  EyeOff,
+  MessageSquare,
+  Bell,
+  AlertCircle,
+  Info
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
 
@@ -28,12 +33,25 @@ interface Contribution {
 interface Profile {
   full_name: string;
   phone_number: string | null;
+  balance_visible: boolean;
+  daily_contribution_amount: number;
+  balance_adjustment: number;
+  missed_contributions: number;
+}
+
+interface AdminMessage {
+  id: string;
+  message: string;
+  message_type: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export default function UserDashboard() {
   const { user, signOut, isAdmin, isLoading: authLoading } = useAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [messages, setMessages] = useState<AdminMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const navigate = useNavigate();
@@ -52,9 +70,8 @@ export default function UserDashboard() {
   }, [user, isAdmin, authLoading, navigate]);
 
   const fetchData = async () => {
-    // Fetch data from database
     try {
-      const [contribRes, profileRes] = await Promise.all([
+      const [contribRes, profileRes, messagesRes] = await Promise.all([
         supabase
           .from('contributions')
           .select('*')
@@ -62,18 +79,38 @@ export default function UserDashboard() {
           .order('contribution_date', { ascending: false }),
         supabase
           .from('profiles')
-          .select('full_name, phone_number')
+          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
           .eq('user_id', user!.id)
-          .single()
+          .single(),
+        supabase
+          .from('admin_messages')
+          .select('*')
+          .eq('user_id', user!.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
       ]);
 
       if (contribRes.data) setContributions(contribRes.data);
       if (profileRes.data) setProfile(profileRes.data);
+      if (messagesRes.data) setMessages(messagesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const calculateMissedDays = () => {
+    if (contributions.length === 0) return 0;
+    
+    const today = startOfDay(new Date());
+    const contributionDates = contributions.map(c => startOfDay(parseISO(c.contribution_date)));
+    const earliestContrib = contributionDates[contributionDates.length - 1];
+    
+    const totalDays = differenceInDays(today, earliestContrib) + 1;
+    const contributedDays = contributions.length;
+    
+    return Math.max(0, totalDays - contributedDays);
   };
 
   const handleAddContribution = async () => {
@@ -94,20 +131,28 @@ export default function UserDashboard() {
         return;
       }
 
+      const missedDays = calculateMissedDays();
+      const dailyAmount = profile?.daily_contribution_amount || 100;
+      // If there are missed days, double the contribution to catch up
+      const contributionAmount = missedDays > 0 ? dailyAmount * 2 : dailyAmount;
+
       const { error } = await supabase
         .from('contributions')
         .insert({
           user_id: user!.id,
-          amount: 100,
+          amount: contributionAmount,
           contribution_date: today,
-          status: 'completed'
+          status: 'completed',
+          notes: missedDays > 0 ? `Catch-up contribution covering missed days` : null
         });
 
       if (error) throw error;
 
       toast({
         title: 'Contribution added!',
-        description: 'KES 100 has been recorded for today.',
+        description: missedDays > 0 
+          ? `KES ${contributionAmount.toLocaleString()} recorded (includes catch-up for missed days).`
+          : `KES ${contributionAmount.toLocaleString()} has been recorded for today.`,
       });
       
       fetchData();
@@ -121,12 +166,26 @@ export default function UserDashboard() {
     }
   };
 
+  const handleMarkMessageRead = async (messageId: string) => {
+    try {
+      await supabase
+        .from('admin_messages')
+        .update({ is_read: true })
+        .eq('id', messageId);
+      
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_read: true } : m));
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
   const totalContributions = contributions.reduce((sum, c) => sum + Number(c.amount), 0);
+  const effectiveBalance = totalContributions + (profile?.balance_adjustment || 0);
   const thisMonthContributions = contributions.filter(c => {
     const date = parseISO(c.contribution_date);
     return date >= startOfMonth(currentMonth) && date <= endOfMonth(currentMonth);
@@ -141,6 +200,23 @@ export default function UserDashboard() {
   const hasContributedOnDay = (day: Date) => {
     return contributions.some(c => isSameDay(parseISO(c.contribution_date), day));
   };
+
+  const missedDays = calculateMissedDays();
+  const dailyAmount = profile?.daily_contribution_amount || 100;
+  const nextContributionAmount = missedDays > 0 ? dailyAmount * 2 : dailyAmount;
+
+  const getMessageIcon = (type: string) => {
+    switch (type) {
+      case 'warning':
+        return <AlertCircle className="w-4 h-4 text-warning" />;
+      case 'announcement':
+        return <Bell className="w-4 h-4 text-primary" />;
+      default:
+        return <Info className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  const unreadMessages = messages.filter(m => !m.is_read);
 
   if (authLoading || isLoading) {
     return (
@@ -173,6 +249,31 @@ export default function UserDashboard() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Admin Messages Banner */}
+        {unreadMessages.length > 0 && (
+          <div className="space-y-2">
+            {unreadMessages.map(message => (
+              <div 
+                key={message.id}
+                className={`flex items-start gap-3 p-3 rounded-lg border ${
+                  message.message_type === 'warning' 
+                    ? 'border-warning/50 bg-warning/10' 
+                    : 'border-primary/30 bg-primary/5'
+                }`}
+                onClick={() => handleMarkMessageRead(message.id)}
+              >
+                {getMessageIcon(message.message_type)}
+                <div className="flex-1">
+                  <p className="text-sm">{message.message}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(parseISO(message.created_at), 'MMM d, HH:mm')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Balance Card */}
         <div className="finance-card">
           <div className="flex items-center justify-between mb-4">
@@ -182,8 +283,35 @@ export default function UserDashboard() {
             </div>
           </div>
           <p className="stat-label mb-1">Your Total Savings</p>
-          <p className="balance-display">KES {totalContributions.toLocaleString()}</p>
+          {profile?.balance_visible ? (
+            <p className="balance-display">KES {effectiveBalance.toLocaleString()}</p>
+          ) : (
+            <div className="flex items-center gap-2">
+              <EyeOff className="w-6 h-6 text-muted-foreground" />
+              <p className="text-xl text-muted-foreground">Balance hidden</p>
+            </div>
+          )}
+          {!profile?.balance_visible && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Your balance will be revealed by admin at the end of the savings cycle
+            </p>
+          )}
         </div>
+
+        {/* Missed Days Alert */}
+        {missedDays > 0 && (
+          <div className="finance-card border-warning/50 bg-warning/10">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-warning" />
+              <div>
+                <p className="font-medium">Catch-up Required</p>
+                <p className="text-sm text-muted-foreground">
+                  You've missed {missedDays} day{missedDays > 1 ? 's' : ''}. Your next contribution will be KES {nextContributionAmount.toLocaleString()} to catch up.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
@@ -195,12 +323,18 @@ export default function UserDashboard() {
               <Plus className="w-6 h-6 text-primary" />
             </div>
             <span className="text-sm font-medium">Add Today</span>
+            <span className="text-xs text-muted-foreground">
+              KES {nextContributionAmount.toLocaleString()}
+            </span>
           </button>
           <div className="finance-card flex flex-col items-center gap-2">
             <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
               <Wallet className="w-6 h-6 text-accent-foreground" />
             </div>
-            <span className="text-sm font-medium">KES 100/day</span>
+            <span className="text-sm font-medium">Daily Target</span>
+            <span className="text-xs text-muted-foreground">
+              KES {dailyAmount.toLocaleString()}/day
+            </span>
           </div>
         </div>
 
@@ -261,7 +395,7 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* Recent Activity - Only 3 items */}
         <div className="finance-card">
           <h3 className="font-medium mb-4">Recent Activity</h3>
           {contributions.length === 0 ? (
@@ -270,7 +404,7 @@ export default function UserDashboard() {
             </p>
           ) : (
             <div className="space-y-3">
-              {contributions.slice(0, 10).map((contribution) => (
+              {contributions.slice(0, 3).map((contribution) => (
                 <div key={contribution.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -283,7 +417,9 @@ export default function UserDashboard() {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Daily Contribution</p>
+                      <p className="text-sm font-medium">
+                        {contribution.notes || 'Daily Contribution'}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}
                       </p>
