@@ -61,14 +61,10 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      // Fetch all profiles and user roles
+      // Fetch all profiles with their contribution totals
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*');
-
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
 
       // Fetch all contributions
       const { data: contributionsData } = await supabase
@@ -76,17 +72,8 @@ export default function AdminDashboard() {
         .select('*')
         .order('contribution_date', { ascending: false });
 
-      if (profilesData && contributionsData && rolesData) {
-        // Filter out admins from members list
-        const adminUserIds = rolesData
-          .filter(role => role.role === 'admin')
-          .map(role => role.user_id);
-
-        const regularMembers = profilesData.filter(
-          profile => !adminUserIds.includes(profile.user_id)
-        );
-
-        const membersWithStats = regularMembers.map(profile => {
+      if (profilesData && contributionsData) {
+        const membersWithStats = profilesData.map(profile => {
           const memberContribs = contributionsData.filter(c => c.user_id === profile.user_id);
           return {
             ...profile,
@@ -101,7 +88,7 @@ export default function AdminDashboard() {
           const profile = profilesData.find(p => p.user_id === c.user_id);
           return {
             ...c,
-            profiles: profile ? { full_name: profile.full_name, balance_visible: profile.balance_visible } : null
+            profiles: profile ? { full_name: profile.full_name } : null
           };
         });
         setRecentContributions(recentWithNames);

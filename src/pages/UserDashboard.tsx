@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   TrendingUp, 
   Calendar, 
@@ -17,11 +15,8 @@ import {
   MessageSquare,
   Bell,
   AlertCircle,
-  Info,
-  Eye,
-  Settings
+  Info
 } from 'lucide-react';
-import { sendSuccessfulContributionSMS } from '@/lib/sms';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
@@ -42,7 +37,6 @@ interface Profile {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
-  sms_enabled?: boolean;
 }
 
 interface AdminMessage {
@@ -60,8 +54,6 @@ export default function UserDashboard() {
   const [messages, setMessages] = useState<AdminMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [showMonthlyAmount, setShowMonthlyAmount] = useState(false);
-  const [isSMSSettingUpdating, setIsSMSSettingUpdating] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -87,7 +79,7 @@ export default function UserDashboard() {
           .order('contribution_date', { ascending: false }),
         supabase
           .from('profiles')
-          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions, sms_enabled')
+          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
           .eq('user_id', user!.id)
           .single(),
         supabase
@@ -115,7 +107,7 @@ export default function UserDashboard() {
     const contributionDates = contributions.map(c => startOfDay(parseISO(c.contribution_date)));
     const earliestContrib = contributionDates[contributionDates.length - 1];
     
-    const totalDays = differenceInDays(today, earliestContrib);
+    const totalDays = differenceInDays(today, earliestContrib) + 1;
     const contributedDays = contributions.length;
     
     return Math.max(0, totalDays - contributedDays);
@@ -156,22 +148,6 @@ export default function UserDashboard() {
 
       if (error) throw error;
 
-      // Send SMS notification (if enabled and phone exists)
-      if (profile?.phone_number && profile?.sms_enabled !== false) {
-        const newBalance = (contributions.reduce((sum, c) => sum + Number(c.amount), 0) + contributionAmount) + (profile?.balance_adjustment || 0);
-        try {
-          await sendSuccessfulContributionSMS(
-            user!.id,
-            profile.phone_number,
-            contributionAmount,
-            newBalance
-          );
-        } catch (smsError) {
-          console.error('Failed to send SMS notification:', smsError);
-          // SMS error shouldn't block the contribution success
-        }
-      }
-
       toast({
         title: 'Contribution added!',
         description: missedDays > 0 
@@ -206,38 +182,6 @@ export default function UserDashboard() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
-  };
-
-  const handleToggleSMSNotifications = async () => {
-    try {
-      setIsSMSSettingUpdating(true);
-      const newSmsEnabled = !profile?.sms_enabled;
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({ sms_enabled: newSmsEnabled })
-        .eq('user_id', user!.id);
-
-      if (error) throw error;
-
-      setProfile(prev => prev ? { ...prev, sms_enabled: newSmsEnabled } : null);
-      
-      toast({
-        title: newSmsEnabled ? 'SMS enabled' : 'SMS disabled',
-        description: newSmsEnabled 
-          ? 'You will receive SMS notifications for contributions.' 
-          : 'You will no longer receive SMS notifications.',
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update SMS settings';
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSMSSettingUpdating(false);
-    }
   };
 
   const totalContributions = contributions.reduce((sum, c) => sum + Number(c.amount), 0);
@@ -407,22 +351,7 @@ export default function UserDashboard() {
             </div>
             <div>
               <p className="stat-label">Total Saved</p>
-              <button
-                onClick={() => setShowMonthlyAmount(!showMonthlyAmount)}
-                className="flex items-center gap-2 text-2xl font-bold amount-positive hover:opacity-75 transition-opacity"
-              >
-                {showMonthlyAmount ? (
-                  <>
-                    <Eye className="w-5 h-5" />
-                    KES {thisMonthTotal.toLocaleString()}
-                  </>
-                ) : (
-                  <>
-                    <EyeOff className="w-5 h-5" />
-                    <span className="text-lg text-muted-foreground">Hidden</span>
-                  </>
-                )}
-              </button>
+              <p className="text-2xl font-bold amount-positive">KES {thisMonthTotal.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -496,56 +425,14 @@ export default function UserDashboard() {
                       </p>
                     </div>
                   </div>
-                  {profile?.balance_visible ? (
-                    <span className="font-semibold amount-positive">
-                      +KES {Number(contribution.amount).toLocaleString()}
-                    </span>
-                  ) : (
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <EyeOff className="w-4 h-4" />
-                      <span className="text-sm">Hidden</span>
-                    </div>
-                  )}
+                  <span className="font-semibold amount-positive">
+                    +KES {Number(contribution.amount).toLocaleString()}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
-
-        {/* Settings Section */}
-        <div className="finance-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Settings className="w-5 h-5 text-primary" />
-            <span className="font-medium">Settings</span>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <div>
-                <p className="font-medium text-sm">SMS Notifications</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Receive SMS updates about your contributions
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant={profile?.sms_enabled ? 'default' : 'outline'}
-                onClick={handleToggleSMSNotifications}
-                disabled={isSMSSettingUpdating}
-              >
-                {profile?.sms_enabled ? 'Enabled' : 'Disabled'}
-              </Button>
-            </div>
-            
-            {profile?.phone_number && (
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  SMS will be sent to: {profile.phone_number}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
       </main>
     </div>
   );
