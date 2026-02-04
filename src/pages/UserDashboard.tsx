@@ -15,10 +15,13 @@ import {
   MessageSquare,
   Bell,
   AlertCircle,
-  Info
+  Info,
+  Eye,
+  Settings
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { sendMissedDayReminder, sendContributionSuccessSMS } from '@/lib/sms-reminders';
 import logo from '@/assets/logo.png';
 
 interface Contribution {
@@ -37,6 +40,8 @@ interface Profile {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
+  sms_enabled?: boolean;
+  last_missed_reminder_sent?: string;
 }
 
 interface AdminMessage {
@@ -54,6 +59,7 @@ export default function UserDashboard() {
   const [messages, setMessages] = useState<AdminMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -79,7 +85,7 @@ export default function UserDashboard() {
           .order('contribution_date', { ascending: false }),
         supabase
           .from('profiles')
-          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
+          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions, sms_enabled, last_missed_reminder_sent')
           .eq('user_id', user!.id)
           .single(),
         supabase
@@ -91,7 +97,45 @@ export default function UserDashboard() {
       ]);
 
       if (contribRes.data) setContributions(contribRes.data);
-      if (profileRes.data) setProfile(profileRes.data);
+      if (profileRes.data) {
+        setProfile(profileRes.data);
+        
+        // Send missed day reminder SMS if applicable
+        if (profileRes.data.sms_enabled && profileRes.data.phone_number) {
+          // Calculate missed days for this profile
+          const contributions = contribRes.data || [];
+          const today = startOfDay(new Date());
+          const yesterday = startOfDay(new Date(today.getTime() - 24 * 60 * 60 * 1000));
+          
+          const sortedByDate = [...contributions].sort((a, b) => 
+            new Date(b.contribution_date).getTime() - new Date(a.contribution_date).getTime()
+          );
+          
+          const lastContribDate = sortedByDate.length > 0 
+            ? startOfDay(parseISO(sortedByDate[0].contribution_date))
+            : null;
+          
+          let missedDays = 0;
+          if (lastContribDate && lastContribDate < yesterday) {
+            missedDays = differenceInDays(yesterday, lastContribDate);
+          }
+          
+          // Send reminder if there are missed days and we haven't already sent one today
+          if (missedDays > 0) {
+            const lastReminderDate = profileRes.data.last_missed_reminder_sent 
+              ? startOfDay(parseISO(profileRes.data.last_missed_reminder_sent))
+              : null;
+            
+            if (!lastReminderDate || lastReminderDate < today) {
+              await sendMissedDayReminder(
+                profileRes.data.phone_number,
+                missedDays,
+                profileRes.data.full_name
+              ).catch(err => console.error('SMS reminder sending failed:', err));
+            }
+          }
+        }
+      }
       if (messagesRes.data) setMessages(messagesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -103,11 +147,14 @@ export default function UserDashboard() {
   const calculateMissedDays = () => {
     if (contributions.length === 0) return 0;
     
+    // Count missed days only from yesterday onwards, not including today
     const today = startOfDay(new Date());
+    const yesterday = startOfDay(new Date(today.getTime() - 24 * 60 * 60 * 1000));
     const contributionDates = contributions.map(c => startOfDay(parseISO(c.contribution_date)));
     const earliestContrib = contributionDates[contributionDates.length - 1];
     
-    const totalDays = differenceInDays(today, earliestContrib) + 1;
+    // Only count missed days up to yesterday
+    const totalDays = Math.max(0, differenceInDays(yesterday, earliestContrib) + 1);
     const contributedDays = contributions.length;
     
     return Math.max(0, totalDays - contributedDays);
@@ -131,10 +178,8 @@ export default function UserDashboard() {
         return;
       }
 
-      const missedDays = calculateMissedDays();
       const dailyAmount = profile?.daily_contribution_amount || 100;
-      // If there are missed days, double the contribution to catch up
-      const contributionAmount = missedDays > 0 ? dailyAmount * 2 : dailyAmount;
+      const contributionAmount = dailyAmount;
 
       const { error } = await supabase
         .from('contributions')
@@ -143,18 +188,94 @@ export default function UserDashboard() {
           amount: contributionAmount,
           contribution_date: today,
           status: 'completed',
-          notes: missedDays > 0 ? `Catch-up contribution covering missed days` : null
+          notes: null
         });
 
       if (error) throw error;
 
       toast({
         title: 'Contribution added!',
-        description: missedDays > 0 
-          ? `KES ${contributionAmount.toLocaleString()} recorded (includes catch-up for missed days).`
-          : `KES ${contributionAmount.toLocaleString()} has been recorded for today.`,
+        description: `KES ${contributionAmount.toLocaleString()} has been recorded for today.`,
       });
       
+      // Send SMS confirmation if enabled
+      if (profile?.sms_enabled && profile?.phone_number) {
+        await sendContributionSuccessSMS(
+          profile.phone_number,
+          contributionAmount,
+          profile.full_name
+        ).catch(err => console.error('SMS sending failed:', err));
+      }
+      
+      fetchData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add contribution';
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleAddContributionForDate = async (date: Date) => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
+      // Check if already contributed on this date
+      const existingContrib = contributions.find(
+        c => c.contribution_date === dateStr
+      );
+      
+      if (existingContrib) {
+        toast({
+          title: 'Already contributed',
+          description: `You have already made a contribution for ${format(date, 'MMM d, yyyy')}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Don't allow contributions for future dates
+      if (dateStr > today) {
+        toast({
+          title: 'Invalid date',
+          description: 'You cannot contribute for future dates.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const dailyAmount = profile?.daily_contribution_amount || 100;
+
+      const { error } = await supabase
+        .from('contributions')
+        .insert({
+          user_id: user!.id,
+          amount: dailyAmount,
+          contribution_date: dateStr,
+          status: 'completed',
+          notes: null
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Contribution added!',
+        description: `KES ${dailyAmount.toLocaleString()} recorded for ${format(date, 'MMM d, yyyy')}.`,
+      });
+      
+      // Send SMS confirmation if enabled
+      if (profile?.sms_enabled && profile?.phone_number) {
+        await sendContributionSuccessSMS(
+          profile.phone_number,
+          dailyAmount,
+          profile.full_name
+        ).catch(err => console.error('SMS sending failed:', err));
+      }
+      
+      setSelectedDate(null);
       fetchData();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to add contribution';
@@ -203,7 +324,6 @@ export default function UserDashboard() {
 
   const missedDays = calculateMissedDays();
   const dailyAmount = profile?.daily_contribution_amount || 100;
-  const nextContributionAmount = missedDays > 0 ? dailyAmount * 2 : dailyAmount;
 
   const getMessageIcon = (type: string) => {
     switch (type) {
@@ -300,13 +420,13 @@ export default function UserDashboard() {
 
         {/* Missed Days Alert */}
         {missedDays > 0 && (
-          <div className="finance-card border-warning/50 bg-warning/10">
+          <div className="finance-card border-info/50 bg-info/10">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-warning" />
+              <Info className="w-5 h-5 text-info" />
               <div>
-                <p className="font-medium">Catch-up Required</p>
+                <p className="font-medium">Missed Days</p>
                 <p className="text-sm text-muted-foreground">
-                  You've missed {missedDays} day{missedDays > 1 ? 's' : ''}. Your next contribution will be KES {nextContributionAmount.toLocaleString()} to catch up.
+                  You have {missedDays} day{missedDays > 1 ? 's' : ''} to catch up on. Click any date on the calendar above to add a contribution!
                 </p>
               </div>
             </div>
@@ -324,7 +444,7 @@ export default function UserDashboard() {
             </div>
             <span className="text-sm font-medium">Add Today</span>
             <span className="text-xs text-muted-foreground">
-              KES {nextContributionAmount.toLocaleString()}
+              KES {dailyAmount.toLocaleString()}
             </span>
           </button>
           <div className="finance-card flex flex-col items-center gap-2">
@@ -351,7 +471,29 @@ export default function UserDashboard() {
             </div>
             <div>
               <p className="stat-label">Total Saved</p>
-              <p className="text-2xl font-bold amount-positive">KES {thisMonthTotal.toLocaleString()}</p>
+              {profile?.balance_visible ? (
+                <button
+                  onClick={() => setShowMonthlyAmount(!showMonthlyAmount)}
+                  className="flex items-center gap-2 text-2xl font-bold amount-positive hover:opacity-75 transition-opacity"
+                >
+                  {showMonthlyAmount ? (
+                    <>
+                      <Eye className="w-5 h-5" />
+                      KES {thisMonthTotal.toLocaleString()}
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="w-5 h-5" />
+                      <span className="text-lg text-muted-foreground">Hidden</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <EyeOff className="w-5 h-5" />
+                  <span className="text-lg">Hidden by Admin</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -377,23 +519,59 @@ export default function UserDashboard() {
             {daysInMonth.map((day) => {
               const contributed = hasContributedOnDay(day);
               const isToday = isSameDay(day, new Date());
+              const isFuture = day > startOfDay(new Date());
               return (
-                <div
+                <button
                   key={day.toISOString()}
-                  className={`aspect-square rounded-lg flex items-center justify-center text-sm ${
+                  onClick={() => !contributed && !isFuture && setSelectedDate(day)}
+                  disabled={isFuture}
+                  className={`aspect-square rounded-lg flex items-center justify-center text-sm transition-all ${
                     contributed 
-                      ? 'bg-primary text-primary-foreground' 
+                      ? 'bg-primary text-primary-foreground cursor-default' 
                       : isToday 
-                        ? 'bg-accent text-accent-foreground border-2 border-primary' 
-                        : 'bg-muted text-muted-foreground'
+                        ? 'bg-accent text-accent-foreground border-2 border-primary hover:opacity-80 cursor-pointer' 
+                        : isFuture
+                          ? 'bg-muted/30 text-muted-foreground cursor-not-allowed'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer'
                   }`}
+                  title={contributed ? 'Already contributed' : isFuture ? 'Cannot contribute to future dates' : 'Click to contribute'}
                 >
                   {format(day, 'd')}
-                </div>
+                </button>
               );
             })}
           </div>
+          <p className="text-xs text-muted-foreground mt-3 text-center">
+            💡 Click any day to contribute for that date
+          </p>
         </div>
+
+        {/* Contribution Date Dialog */}
+        {selectedDate && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div className="bg-background rounded-lg p-6 max-w-sm mx-4">
+              <h3 className="font-semibold mb-4">Contribute for {format(selectedDate, 'MMMM d, yyyy')}</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Add a KES {profile?.daily_contribution_amount || 100} contribution for this date?
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedDate(null)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleAddContributionForDate(selectedDate)}
+                  className="flex-1"
+                >
+                  Confirm
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity - Only 3 items */}
         <div className="finance-card">

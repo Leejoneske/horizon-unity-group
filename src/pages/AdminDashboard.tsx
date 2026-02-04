@@ -83,6 +83,9 @@ export default function AdminDashboard() {
         });
         setMembers(membersWithStats);
 
+        // Display member count (excluding admin)
+        console.log(`Total members (excluding admin): ${membersWithStats.length}`);
+
         // Get recent contributions with profile names
         const recentWithNames = contributionsData.slice(0, 20).map(c => {
           const profile = profilesData.find(p => p.user_id === c.user_id);

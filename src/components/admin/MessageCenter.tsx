@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
+import { sendAdminNotificationSMS } from '@/lib/sms-reminders';
 import { 
   MessageSquare, 
   Send, 
@@ -127,6 +128,21 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
           });
 
         if (error) throw error;
+
+        // Fetch user's phone number and SMS preference to send SMS notification
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('phone_number, sms_enabled, full_name')
+          .eq('user_id', selectedUserId)
+          .single();
+
+        if (profileData?.sms_enabled && profileData?.phone_number) {
+          await sendAdminNotificationSMS(
+            profileData.phone_number,
+            newMessage,
+            profileData.full_name
+          ).catch(err => console.error('SMS notification sending failed:', err));
+        }
 
         toast({
           title: 'Message sent',
