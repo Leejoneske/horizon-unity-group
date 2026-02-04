@@ -1,10 +1,5 @@
-// SMS Reminders - Placeholder for future SMS integration
-// Free SMS Service Configuration - Using Twilio Trial or similar
-// For free services, we can use:
-// 1. Twilio Trial (sends from trial account)
-// 2. AWS SNS Free Tier
-// 3. Vonage/Nexmo Free Credits
-// For this implementation, using a simple endpoint approach
+// SMS Reminders - Twilio Integration via Edge Function
+import { supabase } from '@/integrations/supabase/client';
 
 export const sendMissedDayReminder = async (
   phoneNumber: string,
@@ -14,11 +9,7 @@ export const sendMissedDayReminder = async (
   try {
     const message = `Hi ${userName}! You have ${missedDays} day${missedDays > 1 ? 's' : ''} to catch up on. Click on any past date in your calendar on the Horizon Unit app to add a contribution. No penalties - contribute at your own pace!`;
     
-    // Log the reminder attempt
-    console.log(`SMS reminder logged for ${phoneNumber}: ${message}`);
-
-    // Send via free SMS service (implement based on service choice)
-    return await sendViaFreeSMSService(phoneNumber, message);
+    return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send missed day reminder:', error);
     return false;
@@ -33,9 +24,7 @@ export const sendContributionSuccessSMS = async (
   try {
     const message = `Great job ${userName}! Your KES ${amount.toLocaleString()} contribution has been recorded. Keep saving with Horizon Unit! 🎉`;
     
-    console.log(`SMS contribution success logged for ${phoneNumber}: ${message}`);
-
-    return await sendViaFreeSMSService(phoneNumber, message);
+    return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send contribution success SMS:', error);
     return false;
@@ -50,54 +39,56 @@ export const sendAdminNotificationSMS = async (
   try {
     const message = `Hello ${userName}, you have a message from Horizon Unit Admin: ${messageText}`;
     
-    console.log(`SMS admin notification logged for ${phoneNumber}: ${message}`);
-
-    return await sendViaFreeSMSService(phoneNumber, message);
+    return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send admin notification SMS:', error);
     return false;
   }
 };
 
-// Helper function to format phone numbers
-const formatPhoneNumber = (phoneNumber: string): string => {
-  const cleaned = phoneNumber.replace(/\D/g, '');
-  if (cleaned.startsWith('254')) {
-    return '+' + cleaned;
-  } else if (cleaned.length === 9 || cleaned.length === 10) {
-    return '+254' + cleaned.replace(/^0/, '');
+export const sendBalanceAdjustmentSMS = async (
+  phoneNumber: string,
+  amount: number,
+  adjustmentType: 'add' | 'deduct',
+  userName: string
+): Promise<boolean> => {
+  try {
+    const action = adjustmentType === 'add' ? 'added to' : 'deducted from';
+    const message = `Hello ${userName}, KES ${Math.abs(amount).toLocaleString()} has been ${action} your Horizon Unit balance. Check your dashboard for details.`;
+    
+    return await sendSMS(phoneNumber, message);
+  } catch (error) {
+    console.error('Failed to send balance adjustment SMS:', error);
+    return false;
   }
-  return '+254' + cleaned;
 };
 
-// Send via free SMS service
-// This uses a simple HTTP endpoint or a free SMS provider
-// Options: Twilio Trial, Nexmo, AWS SNS, or custom backend endpoint
-const sendViaFreeSMSService = async (phoneNumber: string, message: string): Promise<boolean> => {
+// Core SMS sending function via Edge Function
+const sendSMS = async (phoneNumber: string, message: string): Promise<boolean> => {
   try {
-    const formattedPhone = formatPhoneNumber(phoneNumber);
-    
-    // Implementation options:
-    // 1. Use Twilio Trial API (free credits)
-    // 2. Use AWS SNS (free tier with credits)
-    // 3. Use Nexmo/Vonage (free credits)
-    // 4. Use a custom backend endpoint
-    
-    // For now, we'll log success without actually sending
-    // In production, integrate with chosen service
-    console.log(`SMS would be sent to ${formattedPhone}: ${message}`);
-    
-    // Example: Send to Twilio endpoint (would need backend)
-    // const response = await fetch('/api/send-sms', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ phoneNumber: formattedPhone, message })
-    // });
-    // return response.ok;
-    
-    return true;
+    if (!phoneNumber) {
+      console.log('No phone number provided, skipping SMS');
+      return false;
+    }
+
+    const { data, error } = await supabase.functions.invoke('send-sms', {
+      body: { to: phoneNumber, message }
+    });
+
+    if (error) {
+      console.error('Edge function error:', error);
+      return false;
+    }
+
+    if (data?.success) {
+      console.log('SMS sent successfully:', data.message_sid);
+      return true;
+    } else {
+      console.error('SMS sending failed:', data?.error);
+      return false;
+    }
   } catch (error) {
-    console.error('Error sending via free SMS service:', error);
+    console.error('Error sending SMS:', error);
     return false;
   }
 };
