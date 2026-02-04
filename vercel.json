@@ -2,8 +2,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "env": {
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key"
+    "VITE_SUPABASE_URL": {
+      "value": "@vite_supabase_url",
+      "required": false
+    },
+    "VITE_SUPABASE_PUBLISHABLE_KEY": {
+      "value": "@vite_supabase_publishable_key",
+      "required": false
+    }
   },
   "rewrites": [
     {
