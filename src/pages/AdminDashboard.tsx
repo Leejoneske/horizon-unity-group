@@ -73,7 +73,10 @@ export default function AdminDashboard() {
         .order('contribution_date', { ascending: false });
 
       if (profilesData && contributionsData) {
-        const membersWithStats = profilesData.map(profile => {
+        // Filter out admin from members list
+        const nonAdminProfiles = profilesData.filter(profile => profile.user_id !== user?.id);
+        
+        const membersWithStats = nonAdminProfiles.map(profile => {
           const memberContribs = contributionsData.filter(c => c.user_id === profile.user_id);
           return {
             ...profile,
