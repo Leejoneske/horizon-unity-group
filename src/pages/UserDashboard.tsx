@@ -228,15 +228,20 @@
        {/* Mobile Container */}
        <div className="w-full max-w-md bg-white min-h-screen shadow-2xl rounded-3xl overflow-hidden flex flex-col">
          
+         {/* Drag Handle - Premium mobile feel */}
+         <div className="flex justify-center pt-3 pb-1">
+           <div className="w-12 h-1 bg-gray-200 rounded-full"></div>
+         </div>
+
          {/* Header */}
-         <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">
+         <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-200">
            {/* Profile Avatar */}
            <div className="relative">
-             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
+             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">
                {profile?.full_name?.substring(0, 2).toUpperCase() || 'MN'}
              </div>
              {unreadMessages.length > 0 && (
-               <div className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-400 rounded-full border-2 border-white flex items-center justify-center">
+               <div className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-400 rounded-full border-2 border-white flex items-center justify-center shadow-md">
                  <div className="w-2 h-2 bg-white rounded-full"></div>
                </div>
              )}
@@ -244,10 +249,10 @@
 
            {/* Action Buttons */}
            <div className="flex items-center gap-2">
-             <button className="px-5 py-2.5 bg-gray-100 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-200 transition">
+             <button className="px-5 py-2.5 bg-gray-100 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-200 transition active:scale-95">
                View
              </button>
-             <button onClick={handleSignOut} className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+             <button onClick={handleSignOut} className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition active:scale-95">
                <LogOut className="w-5 h-5 text-gray-600" />
              </button>
            </div>
@@ -258,17 +263,18 @@
            {/* Scrollable Content Area */}
            <div className="px-4 pt-6 pb-4">
            {/* Balance Card */}
-           <div className="bg-gray-100 rounded-3xl p-6 mb-6">
+           <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-3xl p-6 mb-6 border border-gray-200">
              <div className="flex items-start justify-between">
                <div>
+                 <p className="text-xs text-gray-600 font-semibold uppercase letter-spacing mb-2">Balance</p>
                  <h2 className="text-4xl font-bold text-gray-900 mb-1">{profile?.full_name?.split(' ')[0] || 'User'}</h2>
-                 <p className="text-2xl text-gray-400 font-medium">
+                 <p className="text-2xl text-gray-500 font-semibold">
                    {showBalance && profile?.balance_visible ? `KES ${effectiveBalance.toLocaleString()}` : 'KES ****'}
                  </p>
                </div>
                <button 
                  onClick={() => profile?.balance_visible && setShowBalance(!showBalance)}
-                 className="p-2 hover:bg-gray-200 rounded-lg transition"
+                 className="p-2 hover:bg-gray-200 rounded-lg transition active:scale-95"
                >
                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                    <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
@@ -281,21 +287,25 @@
 
            {/* Quick Stats */}
            <div className="space-y-3 mb-6">
-             <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-               <div className="flex items-center justify-between mb-2">
-                 <span className="text-xs text-gray-600 font-medium">This Month</span>
-                 <TrendingUp className="w-4 h-4 text-blue-600" />
+             <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-4 border border-gray-200">
+               <div className="flex items-center justify-between mb-3">
+                 <span className="text-xs text-gray-600 font-bold uppercase">This Month</span>
+                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                   <TrendingUp className="w-4 h-4 text-blue-600" />
+                 </div>
                </div>
-               <p className="text-2xl font-bold text-gray-900">{thisMonthContributions.length}</p>
-               <p className="text-xs text-gray-500 mt-1">KES {thisMonthContributions.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()}</p>
+               <p className="text-3xl font-bold text-gray-900">{thisMonthContributions.length}</p>
+               <p className="text-xs text-gray-600 mt-2 font-medium">KES {thisMonthContributions.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()}</p>
              </div>
-             <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-               <div className="flex items-center justify-between mb-2">
-                 <span className="text-xs text-gray-600 font-medium">Daily Target</span>
-                 <Target className="w-4 h-4 text-green-600" />
+             <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-4 border border-gray-200">
+               <div className="flex items-center justify-between mb-3">
+                 <span className="text-xs text-gray-600 font-bold uppercase">Daily Target</span>
+                 <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                   <Target className="w-4 h-4 text-green-600" />
+                 </div>
                </div>
-               <p className="text-2xl font-bold text-gray-900">KES {dailyAmount}</p>
-               <p className="text-xs text-gray-500 mt-1">Next contribution</p>
+               <p className="text-3xl font-bold text-gray-900">KES {dailyAmount}</p>
+               <p className="text-xs text-gray-600 mt-2 font-medium">Next contribution</p>
              </div>
            </div>
 
@@ -431,20 +441,20 @@
 
          {/* Bottom Action Buttons - Fixed */}
          <div className="bg-white border-t border-gray-200">
-           <div className="px-4 py-3">
-             <p className="text-center text-sm text-gray-600 mb-3">
-               Start your savings journey with <span className="font-semibold">daily contributions</span>. Tap the button below to get started.
+           <div className="px-4 py-4">
+             <p className="text-center text-xs text-gray-600 mb-4 leading-relaxed">
+               Keep your savings on track. <span className="font-bold">Add your daily contribution</span> to stay committed to your goals.
              </p>
              
-             <div className="grid grid-cols-2 gap-3 pb-2">
+             <div className="grid grid-cols-2 gap-3 pb-3">
                <button 
-                 className="py-4 px-6 bg-gray-100 rounded-full text-base font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95"
+                 className="py-3.5 px-6 bg-gray-100 rounded-full text-sm font-bold text-gray-900 hover:bg-gray-200 transition active:scale-95 uppercase letter-spacing"
                >
                  View
                </button>
                <button 
                  onClick={handleAddContribution}
-                 className="py-4 px-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full text-base font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30 active:scale-95"
+                 className="py-3.5 px-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full text-sm font-bold text-white hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30 active:scale-95 uppercase letter-spacing"
                >
                  Add
                </button>
