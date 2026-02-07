@@ -86,21 +86,26 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
         if (error) throw error;
         toast({ title: 'Message updated', description: 'Your message has been updated successfully.' });
       } else {
-        const { error } = await supabase
+        // First, insert the message to the database
+        const { error: insertError } = await supabase
           .from('admin_messages')
           .insert({ message: newMessage, message_type: messageType, user_id: selectedUserId, admin_id: adminId });
 
-        if (error) throw error;
+        if (insertError) throw insertError;
 
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('phone_number, full_name')
-          .eq('user_id', selectedUserId)
-          .maybeSingle();
+        // Message saved successfully - now try to send SMS (don't fail if SMS fails)
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('phone_number, full_name')
+            .eq('user_id', selectedUserId)
+            .maybeSingle();
 
-        if (profileData?.phone_number) {
-          await sendAdminNotificationSMS(profileData.phone_number, newMessage, profileData.full_name)
-            .catch(err => console.error('SMS notification sending failed:', err));
+          if (profileData?.phone_number) {
+            await sendAdminNotificationSMS(profileData.phone_number, newMessage, profileData.full_name);
+          }
+        } catch (smsErr) {
+          console.error('SMS notification failed (message was still saved):', smsErr);
         }
 
         toast({ title: 'Message sent', description: 'Your message has been sent successfully.' });
