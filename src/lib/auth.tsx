@@ -147,53 +147,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Initialize admin on app load
+    // Initialize admin on app load (only once)
     initializeAdminUser();
 
-    // Set up auth state listener first
+    let mounted = true;
+
+    // Get initial session first
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const admin = await fetchIsAdmin(session.user.id);
+          if (mounted) setIsAdmin(admin);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (e) {
+        console.error('Error getting session:', e);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setIsLoading(true);
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
           try {
             const admin = await fetchIsAdmin(session.user.id);
-            setIsAdmin(admin);
+            if (mounted) setIsAdmin(admin);
           } catch (e) {
             console.error('Error checking admin role:', e);
-            setIsAdmin(false);
+            if (mounted) setIsAdmin(false);
           }
         } else {
           setIsAdmin(false);
         }
-
-        setIsLoading(false);
       }
     );
 
-    // Then get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoading(true);
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        fetchIsAdmin(session.user.id)
-          .then((admin) => setIsAdmin(admin))
-          .catch((e) => {
-            console.error('Error checking admin role:', e);
-            setIsAdmin(false);
-          })
-          .finally(() => setIsLoading(false));
-      } else {
-        setIsAdmin(false);
-        setIsLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

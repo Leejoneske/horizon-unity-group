@@ -50,8 +50,8 @@ export default function UserDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showBalance, setShowBalance] = useState(false);
   const [showInviteCard, setShowInviteCard] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -249,22 +249,18 @@ export default function UserDashboard() {
                 <div>
                   <h2 className="text-4xl font-bold text-gray-900 mb-1">{profile?.full_name?.split(' ')[0] || 'User'}</h2>
                   <p className="text-2xl text-gray-400 font-medium">
-                    {showBalance && profile?.balance_visible 
+                    {profile?.balance_visible 
                       ? `KES ${effectiveBalance.toLocaleString()}` 
                       : 'KES ****'
                     }
                   </p>
+                  {!profile?.balance_visible && (
+                    <p className="text-xs text-gray-400 mt-1">Balance hidden by admin</p>
+                  )}
                 </div>
-                <button 
-                  onClick={() => profile?.balance_visible && setShowBalance(!showBalance)}
-                  className="p-2 hover:bg-gray-200 rounded-lg transition"
-                >
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
-                    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-                    <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
-                  </svg>
-                </button>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-lg">
+                  <Wallet className="w-6 h-6 text-white" />
+                </div>
               </div>
             </div>
           </div>
@@ -291,7 +287,7 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {/* Progress Card */}
+          {/* Progress Card - Only show savings info when balance is visible */}
           {showInviteCard && (
             <div className="px-4 pb-6">
               <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-3xl p-6 relative overflow-hidden">
@@ -315,10 +311,15 @@ export default function UserDashboard() {
                   </div>
                 </div>
 
-                {/* Text */}
+                {/* Text - Hide amounts if balance not visible */}
                 <div className="space-y-1">
                   <h3 className="text-2xl font-bold text-gray-900">This month,</h3>
-                  <h3 className="text-2xl font-bold text-gray-900">KES {thisMonthContributions.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()} saved.</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {profile?.balance_visible 
+                      ? `KES ${thisMonthContributions.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()} saved.`
+                      : `${thisMonthContributions.length} contributions made.`
+                    }
+                  </h3>
                   <p className="text-xl font-semibold text-gray-900">Keep it up!</p>
                 </div>
               </div>
@@ -414,9 +415,19 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {/* Today Section - Activity */}
+          {/* Recent Activity - Show only 3 items, full history requires balance visibility */}
           <div className="px-4 pb-4">
-            <h3 className="text-lg font-semibold text-gray-600 mb-4">Recent</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-600">Recent</h3>
+              {profile?.balance_visible && contributions.length > 3 && (
+                <button 
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="text-sm font-medium text-blue-600"
+                >
+                  {showHistory ? 'Show less' : 'View all'}
+                </button>
+              )}
+            </div>
             
             {contributions.length === 0 ? (
               <div className="text-center py-12">
@@ -427,7 +438,7 @@ export default function UserDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {contributions.slice(0, 5).map((contribution) => (
+                {contributions.slice(0, showHistory && profile?.balance_visible ? contributions.length : 3).map((contribution) => (
                   <div key={contribution.id} className="bg-gray-100 rounded-2xl p-4">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
@@ -441,7 +452,12 @@ export default function UserDashboard() {
                         }
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-900">+KES {Number(contribution.amount).toLocaleString()}</p>
+                        <p className="font-semibold text-gray-900">
+                          {profile?.balance_visible 
+                            ? `+KES ${Number(contribution.amount).toLocaleString()}`
+                            : 'Contribution recorded'
+                          }
+                        </p>
                         <p className="text-sm text-gray-500">{format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}</p>
                       </div>
                     </div>
@@ -461,7 +477,20 @@ export default function UserDashboard() {
             </p>
             
             <div className="grid grid-cols-2 gap-3 pb-2">
-              <button className="py-4 px-6 bg-gray-100 rounded-full text-base font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95">
+              <button 
+                onClick={() => {
+                  if (profile?.balance_visible) {
+                    setShowHistory(!showHistory);
+                  } else {
+                    toast({ title: 'History hidden', description: 'Full history is available when balance is visible.', variant: 'default' });
+                  }
+                }}
+                className={`py-4 px-6 rounded-full text-base font-semibold transition active:scale-95 ${
+                  profile?.balance_visible 
+                    ? 'bg-gray-100 text-gray-900 hover:bg-gray-200' 
+                    : 'bg-gray-50 text-gray-400'
+                }`}
+              >
                 History
               </button>
               <button 

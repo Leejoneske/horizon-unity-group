@@ -119,8 +119,8 @@ export default function AdminDashboard() {
         <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">
           {/* Profile Avatar */}
           <div className="relative">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-              <img src={logo} alt="Admin" className="w-8 h-8 object-contain" />
+            <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md border border-gray-100">
+              <img src={logo} alt="Admin" className="w-10 h-10 object-contain" />
             </div>
             <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full"></div>
@@ -151,13 +151,9 @@ export default function AdminDashboard() {
                   <h2 className="text-4xl font-bold text-gray-900 mb-1">Horizon</h2>
                   <p className="text-2xl text-gray-400 font-medium">KES {totalGroupSavings.toLocaleString()}</p>
                 </div>
-                <button className="p-2 hover:bg-gray-200 rounded-lg transition">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
-                    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-                    <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
-                  </svg>
-                </button>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-lg">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
               </div>
             </div>
           </div>
@@ -169,9 +165,7 @@ export default function AdminDashboard() {
                 onClick={() => setActiveTab('members')}
                 className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
               >
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <Users className="w-6 h-6 text-gray-900" />
-                </div>
+                <Users className="w-8 h-8 text-gray-700" />
                 <span className="text-base font-semibold text-gray-900">Members</span>
               </button>
               
@@ -179,9 +173,7 @@ export default function AdminDashboard() {
                 onClick={() => setActiveTab('messages')}
                 className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
               >
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <MessageSquare className="w-6 h-6 text-gray-900" />
-                </div>
+                <MessageSquare className="w-8 h-8 text-gray-700" />
                 <span className="text-base font-semibold text-gray-900">Messages</span>
               </button>
             </div>

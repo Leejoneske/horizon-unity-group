@@ -173,25 +173,25 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
     setIsContribDialogOpen(true);
   };
 
+  // Check if all members have balance visible
+  const allVisible = members.length > 0 && members.every(m => m.balance_visible);
+
   return (
     <>
-      {/* Header with visibility controls */}
+      {/* Header with visibility toggle */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-600">All Members</h3>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => handleToggleAllVisibility(true)} 
-            className="px-4 py-2 bg-gray-100 rounded-full text-xs font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95 flex items-center gap-1"
-          >
-            <Eye className="w-3 h-3" /> Show All
-          </button>
-          <button 
-            onClick={() => handleToggleAllVisibility(false)} 
-            className="px-4 py-2 bg-gray-100 rounded-full text-xs font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95 flex items-center gap-1"
-          >
-            <EyeOff className="w-3 h-3" /> Hide All
-          </button>
-        </div>
+        <button 
+          onClick={() => handleToggleAllVisibility(!allVisible)} 
+          className={`px-4 py-2 rounded-full text-xs font-semibold transition active:scale-95 flex items-center gap-1.5 ${
+            allVisible 
+              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+              : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+          }`}
+        >
+          {allVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          {allVisible ? 'Balances Visible' : 'Balances Hidden'}
+        </button>
       </div>
 
       {members.length === 0 ? (

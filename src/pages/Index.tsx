@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SEOHead } from '@/components/SEOHead';
 import { 
@@ -9,7 +8,6 @@ import {
   Users,
   Calendar,
   Lock,
-  Zap,
   CheckCircle2,
   MessageSquare,
   BarChart3
@@ -17,14 +15,12 @@ import {
 import { useAuth } from '@/lib/auth';
 import logo from '@/assets/logo.png';
 
-const LANDING_PAGE_VISITED_KEY = 'horizon_landing_visited';
-
-// Simple cached version for repeat visitors
+// Simple landing page for all visitors
 function SimpleLandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-background flex flex-col">
       {/* Simple Header */}
-      <header className="border-b border-border/50 backdrop-blur-md bg-background/50 sticky top-0 z-10">
+      <header className="border-b border-border/50 backdrop-blur-md bg-white sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img src={logo} alt="Horizon Unit" className="w-6 h-6" />
@@ -90,22 +86,9 @@ function SimpleLandingPage() {
 }
 
 export default function Index() {
-  const navigate = useNavigate();
   const { user, isAdmin, isLoading } = useAuth();
-  const [hasVisited, setHasVisited] = useState(false);
 
-  useEffect(() => {
-    const visited = localStorage.getItem(LANDING_PAGE_VISITED_KEY);
-    setHasVisited(!!visited);
-    
-    if (!isLoading && user) {
-      localStorage.setItem(LANDING_PAGE_VISITED_KEY, 'true');
-      setTimeout(() => {
-        navigate(isAdmin ? '/admin/dashboard' : '/dashboard');
-      }, 300);
-    }
-  }, [user, isAdmin, isLoading, navigate]);
-
+  // Only show loading spinner during initial auth check (very brief)
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -119,8 +102,25 @@ export default function Index() {
     );
   }
 
-  if (hasVisited && !user) {
-    return <SimpleLandingPage />;
+  // If user is logged in, show quick navigation options but don't auto-redirect
+  if (user) {
+    const dashboardPath = isAdmin ? '/admin/dashboard' : '/dashboard';
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center mx-auto">
+            <Users className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Welcome back!</h1>
+          <p className="text-muted-foreground">You're already logged in.</p>
+          <Link to={dashboardPath}>
+            <Button size="lg" className="rounded-lg">
+              Go to Dashboard <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -160,7 +160,7 @@ export default function Index() {
         </div>
 
         {/* Navigation Header */}
-        <header className="relative z-10 border-b border-border/50 backdrop-blur-md bg-background/50">
+        <header className="relative z-10 border-b border-border/50 backdrop-blur-md bg-white">
           <div className="max-w-6xl mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
