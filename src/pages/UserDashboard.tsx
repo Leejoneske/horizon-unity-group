@@ -11,7 +11,8 @@ import {
   AlertCircle,
   X,
   LogOut,
-  Search
+  Search,
+  Share2
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -178,8 +179,41 @@ export default function UserDashboard() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Force navigate even if signOut fails
+      navigate('/login', { replace: true });
+    }
+  };
+
+  const handleInvite = async () => {
+    try {
+      // Get the app URL
+      const appUrl = window.location.origin;
+      const inviteLink = `${appUrl}/register?referral=${user?.id}`;
+      
+      // Try to use native share if available
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Join Horizon Unit',
+          text: 'Save together with our smart group savings app. Join my savings circle!',
+          url: inviteLink,
+        });
+        toast({ title: 'Shared!', description: 'Your referral link has been shared.' });
+      } else {
+        // Fallback: Copy to clipboard
+        await navigator.clipboard.writeText(inviteLink);
+        toast({ title: 'Link copied!', description: 'Your referral link has been copied to clipboard.' });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to share invite link';
+      if (message !== 'Share canceled') {
+        toast({ title: 'Error', description: message, variant: 'destructive' });
+      }
+    }
   };
 
   const totalContributions = contributions.reduce((sum, c) => sum + Number(c.amount), 0);
@@ -201,16 +235,16 @@ export default function UserDashboard() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="w-screen h-screen bg-white flex items-center justify-center">
         <div className="animate-pulse text-gray-400">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+    <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
       {/* Mobile Container */}
-      <div className="w-full max-w-md bg-white min-h-screen shadow-2xl rounded-3xl overflow-hidden flex flex-col">
+      <div className="w-full h-full bg-white overflow-hidden flex flex-col">
         
         {/* Header */}
         <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">
@@ -228,8 +262,12 @@ export default function UserDashboard() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            <button className="px-5 py-2.5 bg-gray-100 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-200 transition">
-              History
+            <button 
+              onClick={handleInvite}
+              className="px-5 py-2.5 bg-gray-100 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-200 transition flex items-center gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              Invite
             </button>
             <button 
               onClick={handleSignOut}

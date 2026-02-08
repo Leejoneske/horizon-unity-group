@@ -89,8 +89,14 @@ export default function AdminDashboard() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      await signOut();
+      navigate('/admin/login', { replace: true });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Force navigate even if signOut fails
+      navigate('/admin/login', { replace: true });
+    }
   };
 
   const currentMonth = new Date();
@@ -104,16 +110,16 @@ export default function AdminDashboard() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="w-screen h-screen bg-white flex items-center justify-center">
         <div className="animate-pulse text-gray-400">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+    <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
       {/* Mobile Container */}
-      <div className="w-full max-w-md bg-white min-h-screen shadow-2xl rounded-3xl overflow-hidden flex flex-col">
+      <div className="w-full h-full bg-white overflow-hidden flex flex-col">
         
         {/* Header */}
         <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">

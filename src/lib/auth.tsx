@@ -137,13 +137,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchIsAdmin = async (userId: string) => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
-    return !!data;
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+      return !!data;
+    } catch (e) {
+      console.error('Error fetching admin status:', e);
+      return false;
+    }
+  };
+
+  const updateAuthState = async (currentSession: Session | null) => {
+    if (currentSession?.user) {
+      const admin = await fetchIsAdmin(currentSession.user.id);
+      setUser(currentSession.user);
+      setSession(currentSession);
+      setIsAdmin(admin);
+    } else {
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+    }
   };
 
   useEffect(() => {
@@ -155,21 +173,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Get initial session first
     const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Check for existing session in storage
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) setIsLoading(false);
+          return;
+        }
 
-        if (session?.user) {
-          const admin = await fetchIsAdmin(session.user.id);
-          if (mounted) setIsAdmin(admin);
-        } else {
-          setIsAdmin(false);
+        if (mounted) {
+          await updateAuthState(initialSession);
         }
       } catch (e) {
-        console.error('Error getting session:', e);
+        console.error('Error getting initial session:', e);
+        if (mounted) {
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+        }
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -179,23 +201,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event, currentSession) => {
         if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
 
-        if (session?.user) {
-          try {
-            const admin = await fetchIsAdmin(session.user.id);
-            if (mounted) setIsAdmin(admin);
-          } catch (e) {
-            console.error('Error checking admin role:', e);
-            if (mounted) setIsAdmin(false);
-          }
-        } else {
+        console.log('Auth event:', event);
+
+        // Handle logout event
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
           setIsAdmin(false);
+          return;
         }
+
+        // Handle sign in and token refresh
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          await updateAuthState(currentSession);
+          return;
+        }
+
+        // Default: update state with current session
+        await updateAuthState(currentSession);
       }
     );
 
@@ -206,8 +232,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setIsAdmin(false);
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.error('Sign out error:', error);
+        // Force clear even if error
+        setUser(null);
+        setSession(null);
+        setIsAdmin(false);
+      } else {
+        setUser(null);
+        setSession(null);
+        setIsAdmin(false);
+      }
+    } catch (e) {
+      console.error('Error during sign out:', e);
+      // Force clear even if error
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
