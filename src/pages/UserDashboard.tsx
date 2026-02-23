@@ -93,7 +93,31 @@ export default function UserDashboard() {
       ]);
 
       if (contribRes.data) setContributions(contribRes.data);
-      if (profileRes.data) setProfile(profileRes.data);
+      
+      let profileData = profileRes.data;
+      
+      // If phone_number is missing from profile, extract from auth metadata and update
+      if (profileData && !profileData.phone_number && user) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const phoneFromAuth = authUser?.user_metadata?.phone_number 
+          || authUser?.raw_user_meta_data?.phone_number;
+
+        if (phoneFromAuth && phoneFromAuth.trim()) {
+          // Update profile with phone number from auth
+          const { data: updated } = await supabase
+            .from('profiles')
+            .update({ phone_number: phoneFromAuth })
+            .eq('user_id', user.id)
+            .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
+            .single();
+
+          if (updated) {
+            profileData = updated;
+          }
+        }
+      }
+      
+      if (profileData) setProfile(profileData);
       if (messagesRes.data) setMessages(messagesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -585,8 +609,9 @@ export default function UserDashboard() {
 
             {/* Phone Number */}
             <div className="bg-gray-100 rounded-2xl p-4 mb-4">
-              <p className="text-xs text-gray-600 font-semibold mb-1">FROM</p>
-              <p className="text-2xl font-bold text-gray-900">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'N/A'}</p>
+              <p className="text-xs text-gray-600 font-semibold mb-1">TO (M-Pesa Number)</p>
+              <p className="text-2xl font-bold text-gray-900">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Loading...'}</p>
+              <p className="text-xs text-gray-500 mt-1">You will receive STK prompt on this number</p>
             </div>
 
             {/* Amount */}
