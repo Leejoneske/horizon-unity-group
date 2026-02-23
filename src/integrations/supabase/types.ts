@@ -140,6 +140,12 @@ export type Database = {
           phone_number: string | null
           updated_at: string
           user_id: string
+          member_status: Database["public"]["Enums"]["member_status"]
+          member_role: Database["public"]["Enums"]["member_role"]
+          penalty_amount: number | null
+          reward_amount: number | null
+          verified_at: string | null
+          document_verified: boolean | null
         }
         Insert: {
           balance_adjustment?: number
@@ -152,6 +158,12 @@ export type Database = {
           phone_number?: string | null
           updated_at?: string
           user_id: string
+          member_status?: Database["public"]["Enums"]["member_status"]
+          member_role?: Database["public"]["Enums"]["member_role"]
+          penalty_amount?: number | null
+          reward_amount?: number | null
+          verified_at?: string | null
+          document_verified?: boolean | null
         }
         Update: {
           balance_adjustment?: number
@@ -164,6 +176,12 @@ export type Database = {
           phone_number?: string | null
           updated_at?: string
           user_id?: string
+          member_status?: Database["public"]["Enums"]["member_status"]
+          member_role?: Database["public"]["Enums"]["member_role"]
+          penalty_amount?: number | null
+          reward_amount?: number | null
+          verified_at?: string | null
+          document_verified?: boolean | null
         }
         Relationships: []
       }
@@ -185,6 +203,192 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_requests: {
+        Row: {
+          id: string
+          user_id: string
+          admin_id: string | null
+          amount: number
+          status: Database["public"]["Enums"]["withdrawal_status"]
+          reason: string | null
+          rejection_reason: string | null
+          created_at: string
+          reviewed_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          admin_id?: string | null
+          amount: number
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          reason?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          reviewed_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          admin_id?: string | null
+          amount?: number
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          reason?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          reviewed_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
+      member_notes: {
+        Row: {
+          id: string
+          user_id: string
+          admin_id: string | null
+          note: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          admin_id?: string | null
+          note: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          admin_id?: string | null
+          note?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      member_penalties: {
+        Row: {
+          id: string
+          user_id: string
+          admin_id: string | null
+          amount: number
+          reason: string | null
+          applied_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          admin_id?: string | null
+          amount: number
+          reason?: string | null
+          applied_date?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          admin_id?: string | null
+          amount?: number
+          reason?: string | null
+          applied_date?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      member_rewards: {
+        Row: {
+          id: string
+          user_id: string
+          admin_id: string | null
+          amount: number
+          reason: string | null
+          awarded_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          admin_id?: string | null
+          amount: number
+          reason?: string | null
+          awarded_date?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          admin_id?: string | null
+          amount?: number
+          reason?: string | null
+          awarded_date?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      announcements: {
+        Row: {
+          id: string
+          admin_id: string
+          title: string
+          content: string
+          sent_to_all: boolean | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          admin_id: string
+          title: string
+          content: string
+          sent_to_all?: boolean | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          admin_id?: string
+          title?: string
+          content?: string
+          sent_to_all?: boolean | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          admin_id: string | null
+          action: string
+          entity_type: string
+          entity_id: string | null
+          changes: Json | null
+          ip_address: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          admin_id?: string | null
+          action: string
+          entity_type: string
+          entity_id?: string | null
+          changes?: Json | null
+          ip_address?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          admin_id?: string | null
+          action?: string
+          entity_type?: string
+          entity_id?: string | null
+          changes?: Json | null
+          ip_address?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -200,6 +404,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "member"
+      member_status: "active" | "inactive" | "suspended"
+      member_role: "member" | "coordinator" | "leader"
+      withdrawal_status: "pending" | "approved" | "rejected" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -328,6 +535,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "member"],
+      member_status: ["active", "inactive", "suspended"],
+      member_role: ["member", "coordinator", "leader"],
+      withdrawal_status: ["pending", "approved", "rejected", "completed"],
     },
   },
 } as const

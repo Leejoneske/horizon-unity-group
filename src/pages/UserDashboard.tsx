@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import FinancialTipsWindow from '@/components/FinancialTipsWindow';
+import TipsCard from '@/components/TipsCard';
 
 interface Contribution {
   id: string;
@@ -326,8 +326,8 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {/* Financial Tips Window */}
-          <FinancialTipsWindow 
+          {/* Tips Card */}
+          <TipsCard 
             showClose={true}
             onClose={() => setShowInviteCard(false)}
             showInitially={showInviteCard}

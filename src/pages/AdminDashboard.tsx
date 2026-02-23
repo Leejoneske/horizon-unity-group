@@ -10,13 +10,22 @@ import {
   Settings,
   ChevronRight,
   Search,
-  X
+  X,
+  BarChart3,
+  LogIn,
+  Edit3,
+  AlertCircle,
+  SendHorizontal
 } from 'lucide-react';
 import { startOfMonth, endOfMonth, parseISO, format } from 'date-fns';
 import logo from '@/assets/logo.png';
 import MemberManagement from '@/components/admin/MemberManagement';
 import MessageCenter from '@/components/admin/MessageCenter';
-import FinancialTipsWindow from '@/components/FinancialTipsWindow';
+import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
+import MemberSearchFilter from '@/components/admin/MemberSearchFilter';
+import AuditLogViewer from '@/components/admin/AuditLogViewer';
+import AnnouncementsManager from '@/components/admin/AnnouncementsManager';
+import AdminSettings from '@/components/admin/AdminSettings';
 
 interface Member {
   id: string;
@@ -45,7 +54,7 @@ export default function AdminDashboard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [recentContributions, setRecentContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'audit' | 'announcements' | 'settings'>('overview');
   const [showStatsCard, setShowStatsCard] = useState(true);
   const navigate = useNavigate();
 
@@ -167,31 +176,114 @@ export default function AdminDashboard() {
 
           {/* Action Buttons Grid */}
           <div className="px-4 pb-6">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2 mb-4">
               <button 
                 onClick={() => setActiveTab('members')}
-                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'members' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                <Users className="w-8 h-8 text-gray-700" />
-                <span className="text-base font-semibold text-gray-900">Members</span>
+                <Users className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Members</span>
               </button>
               
               <button 
                 onClick={() => setActiveTab('messages')}
-                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'messages' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                <MessageSquare className="w-8 h-8 text-gray-700" />
-                <span className="text-base font-semibold text-gray-900">Messages</span>
+                <MessageSquare className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Messages</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('analytics')}
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'analytics' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <BarChart3 className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Analytics</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button 
+                onClick={() => setActiveTab('search')}
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'search' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Search className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Search</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('audit')}
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'audit' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <LogIn className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Audit Log</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('announcements')}
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'announcements' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <SendHorizontal className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Announce</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('settings')}
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'settings' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Settings className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Settings</span>
               </button>
             </div>
           </div>
 
-          {/* Financial Tips Window */}
-          <FinancialTipsWindow 
-            showClose={true}
-            onClose={() => setShowStatsCard(false)}
-            showInitially={showStatsCard}
-          />
+          {/* Stats Card */}
+          {showStatsCard && (
+            <div className="px-4 pb-6">
+              <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-3xl p-6 relative overflow-hidden">
+                <button 
+                  className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white transition"
+                  onClick={() => setShowStatsCard(false)}
+                >
+                  <X className="w-4 h-4 text-gray-600" />
+                </button>
+                
+                {/* Stats Icons */}
+                <div className="flex gap-2 mb-8">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6">
+                    <span className="text-2xl font-bold text-white">{members.length}</span>
+                  </div>
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform rotate-6">
+                    <TrendingUp className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
+                    <Users className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+
+                {/* Text */}
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-bold text-gray-900">This month,</h3>
+                  <h3 className="text-2xl font-bold text-gray-900">KES {thisMonthTotal.toLocaleString()} collected.</h3>
+                  <p className="text-xl font-semibold text-gray-900">{thisMonthContribs.length} contributions</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tab Content Based on Active Tab */}
           {activeTab === 'overview' && (
@@ -271,45 +363,37 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Bottom Navigation - Inside scrollable */}
-          <div className="bg-white border-t border-gray-200 px-4 py-4 mb-2">
-            <p className="text-center text-sm text-gray-600 mb-3">
-              <span className="font-semibold">{members.length} members</span> • <span className="font-semibold">KES {totalGroupSavings.toLocaleString()}</span>
-            </p>
-            
-            <div className="grid grid-cols-3 gap-2">
-              <button 
-                onClick={() => setActiveTab('overview')}
-                className={`py-3 px-4 rounded-full text-sm font-semibold transition active:scale-95 ${
-                  activeTab === 'overview' 
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                }`}
-              >
-                Overview
-              </button>
-              <button 
-                onClick={() => setActiveTab('members')}
-                className={`py-3 px-4 rounded-full text-sm font-semibold transition active:scale-95 ${
-                  activeTab === 'members' 
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                }`}
-              >
-                Members
-              </button>
-              <button 
-                onClick={() => setActiveTab('messages')}
-                className={`py-3 px-4 rounded-full text-sm font-semibold transition active:scale-95 ${
-                  activeTab === 'messages' 
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                }`}
-              >
-                Messages
-              </button>
-            </div>
-          </div>
+          {activeTab === 'analytics' && (
+            <AnalyticsDashboard 
+              members={members} 
+              contributions={recentContributions}
+              totalSavings={totalGroupSavings}
+            />
+          )}
+
+          {activeTab === 'search' && (
+            <MemberSearchFilter 
+              members={members}
+              onMemberSelect={(member) => {
+                setActiveTab('members');
+              }}
+            />
+          )}
+
+          {activeTab === 'audit' && (
+            <AuditLogViewer logs={[]} />
+          )}
+
+          {activeTab === 'announcements' && (
+            <AnnouncementsManager 
+              adminId={user!.id}
+              onRefresh={fetchData}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <AdminSettings adminId={user!.id} />
+          )}
         </div>
       </div>
     </div>
