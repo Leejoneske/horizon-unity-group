@@ -12,13 +12,11 @@ import {
   X,
   LogOut,
   Search,
-  Share2,
-  Phone as PhoneIcon
+  Share2
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import TipsCard from '@/components/TipsCard';
-import PhoneContributionDialog from '@/components/PhoneContributionDialog';
 
 interface Contribution {
   id: string;
@@ -56,7 +54,8 @@ export default function UserDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showInviteCard, setShowInviteCard] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
-  const [showPhoneDialog, setShowPhoneDialog] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -124,19 +123,78 @@ export default function UserDashboard() {
         return;
       }
 
+      // Show payment confirmation
+      setShowPaymentConfirm(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process request';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
+  };
+
+  const handleInitiatePayment = async () => {
+    if (!profile?.phone_number) {
+      toast({ 
+        title: 'Error', 
+        description: 'Phone number not registered. Please update your profile.', 
+        variant: 'destructive' 
+      });
+      setShowPaymentConfirm(false);
+      return;
+    }
+
+    setPaymentLoading(true);
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Backend not configured');
+      }
+
+      const functionUrl = `${supabaseUrl}/functions/v1/initiate-pesapal-payment`;
       const dailyAmount = profile?.daily_contribution_amount || 100;
 
-      const { error } = await supabase
-        .from('contributions')
-        .insert({ user_id: user!.id, amount: dailyAmount, contribution_date: today, status: 'completed', notes: null });
+      // Call the backend function
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user!.id,
+          amount: dailyAmount,
+          phoneNumber: profile.phone_number,
+          userName: profile.full_name || 'User',
+        }),
+      });
 
-      if (error) throw error;
+      const result = await response.json();
 
-      toast({ title: 'Contribution added!', description: `KES ${dailyAmount.toLocaleString()} has been recorded for today.` });
-      fetchData();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to initiate payment');
+      }
+
+      // Payment initiated - show waiting message
+      setShowPaymentConfirm(false);
+      
+      toast({
+        title: '✅ Payment Initiated',
+        description: `Check your phone for M-Pesa prompt. Enter your PIN to complete the payment.`,
+      });
+
+      // Wait a bit then close and refresh
+      setTimeout(() => {
+        fetchData();
+      }, 2000);
+
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to add contribution';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      const message = error instanceof Error ? error.message : 'Failed to process payment';
+      toast({ 
+        title: '❌ Payment Error', 
+        description: message, 
+        variant: 'destructive' 
+      });
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -309,7 +367,7 @@ export default function UserDashboard() {
 
           {/* Action Buttons Grid */}
           <div className="px-4 pb-6">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={handleAddContribution}
                 className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
@@ -318,16 +376,6 @@ export default function UserDashboard() {
                   <Plus className="w-6 h-6 text-gray-900" />
                 </div>
                 <span className="text-base font-semibold text-gray-900">Add money</span>
-              </button>
-              
-              <button 
-                onClick={() => setShowPhoneDialog(true)}
-                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
-              >
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <PhoneIcon className="w-6 h-6 text-gray-900" />
-                </div>
-                <span className="text-base font-semibold text-gray-900">Via Phone</span>
               </button>
               
               <button className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95">
@@ -415,8 +463,7 @@ export default function UserDashboard() {
                   return (
                     <button
                       key={day.toISOString()}
-                      onClick={() => !contributed && !isFuture && setSelectedDate(day)}
-                      disabled={isFuture}
+                      disabled={true}
                       className={`aspect-square rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${
                         contributed 
                           ? 'bg-gradient-to-br from-green-400 to-green-500 text-white shadow-sm' 
@@ -424,7 +471,7 @@ export default function UserDashboard() {
                             ? 'bg-white text-gray-900 ring-2 ring-gray-900' 
                             : isFuture
                               ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-gray-600 hover:bg-white'
+                              : 'text-gray-600'
                       }`}
                     >
                       {format(day, 'd')}
@@ -524,49 +571,58 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* Contribution Dialog Modal */}
-      {selectedDate && (
+      {/* Payment Confirmation Dialog */}
+      {showPaymentConfirm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
             <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-green-500 mx-auto mb-4 flex items-center justify-center shadow-lg">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 mx-auto mb-4 flex items-center justify-center shadow-lg">
                 <Plus className="w-8 h-8 text-white" />
               </div>
-              <h3 className="font-bold text-xl text-gray-900">Add Contribution</h3>
-              <p className="text-gray-500 text-sm mt-2">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</p>
+              <h3 className="font-bold text-xl text-gray-900">Confirm Payment</h3>
+              <p className="text-gray-500 text-sm mt-1">via M-Pesa</p>
             </div>
-            <div className="bg-gray-100 rounded-2xl p-4 mb-6 text-center">
-              <p className="text-3xl font-bold text-gray-900">KES {dailyAmount.toLocaleString()}</p>
-              <p className="text-sm text-gray-500 mt-1">Daily contribution amount</p>
+
+            {/* Phone Number */}
+            <div className="bg-gray-100 rounded-2xl p-4 mb-4">
+              <p className="text-xs text-gray-600 font-semibold mb-1">FROM</p>
+              <p className="text-2xl font-bold text-gray-900">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'N/A'}</p>
             </div>
+
+            {/* Amount */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 mb-6">
+              <p className="text-xs text-green-700 font-semibold mb-1">AMOUNT</p>
+              <p className="text-3xl font-bold text-green-600">KES {(profile?.daily_contribution_amount || 100).toLocaleString()}</p>
+              <p className="text-xs text-green-600 mt-1">You'll enter your PIN on your phone</p>
+            </div>
+
+            {/* Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button 
-                onClick={() => setSelectedDate(null)} 
-                className="py-4 px-6 bg-gray-100 rounded-full font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95"
+                onClick={() => setShowPaymentConfirm(false)}
+                disabled={paymentLoading}
+                className="py-4 px-6 bg-gray-100 rounded-full font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button 
-                onClick={() => handleAddContributionForDate(selectedDate)} 
-                className="py-4 px-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30 active:scale-95"
+                onClick={handleInitiatePayment}
+                disabled={paymentLoading}
+                className="py-4 px-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full font-semibold text-white hover:from-green-600 hover:to-emerald-700 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Confirm
+                {paymentLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Pay Now'
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Phone Contribution Dialog */}
-      <PhoneContributionDialog
-        isOpen={showPhoneDialog}
-        onClose={() => setShowPhoneDialog(false)}
-        userId={user!.id}
-        userName={profile?.full_name || 'User'}
-        userPhone={profile?.phone_number || ''}
-        defaultAmount={profile?.daily_contribution_amount || 100}
-      />
     </div>
   );
 }
