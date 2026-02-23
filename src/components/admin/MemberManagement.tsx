@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Plus, Minus, Settings, X, Info } from 'lucide-react';
-import UserDetailDialog from './UserDetailDialog';
 
 interface Member {
   id: string;
@@ -28,6 +28,7 @@ interface MemberManagementProps {
 }
 
 export default function MemberManagement({ members, onRefresh, adminId }: MemberManagementProps) {
+  const navigate = useNavigate();
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [adjustmentType, setAdjustmentType] = useState<'add' | 'deduct'>('add');
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
@@ -35,8 +36,6 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
   const [newDailyAmount, setNewDailyAmount] = useState('');
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
   const [isContribDialogOpen, setIsContribDialogOpen] = useState(false);
-  const [isUserDetailDialogOpen, setIsUserDetailDialogOpen] = useState(false);
-  const [selectedDetailMember, setSelectedDetailMember] = useState<Member | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -179,8 +178,7 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
   };
 
   const openUserDetailDialog = (member: Member) => {
-    setSelectedDetailMember(member);
-    setIsUserDetailDialogOpen(true);
+    navigate(`/admin/member/${member.user_id}`);
   };
 
   // Check if all members have balance visible
@@ -387,19 +385,6 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
           </div>
         </div>
       )}
-
-      {/* User Detail Dialog */}
-      {selectedDetailMember && (
-        <UserDetailDialog 
-          member={selectedDetailMember}
-          isOpen={isUserDetailDialogOpen}
-          onClose={() => {
-            setIsUserDetailDialogOpen(false);
-            setSelectedDetailMember(null);
-          }}
-          adminId={adminId}
-          onRefresh={onRefresh}
-        />
-      )}    </>
+    </>
   );
 }

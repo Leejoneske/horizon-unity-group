@@ -178,72 +178,108 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Refresh session from server to ensure it's current
+  const refreshSessionFromServer = async () => {
+    try {
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      if (!error && currentSession) {
+        return currentSession;
+      }
+      return null;
+    } catch (e) {
+      console.error('Error refreshing session:', e);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Initialize admin on app load (only once)
     initializeAdminUser();
 
     let mounted = true;
 
-    // Get initial session first
+    // Get initial session with validation
     const getInitialSession = async () => {
       try {
-        // Add timeout to prevent infinite loading
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session recovery timeout')), 5000)
-        );
-
-        const { data: { session: initialSession }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+        console.log('Attempting to restore session...');
         
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) setIsLoading(false);
-          return;
+        // First try to get the current session
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.warn('Session recovery warning:', sessionError.message);
         }
 
-        if (mounted) {
-          await updateAuthState(initialSession);
+        if (!mounted) return;
+
+        // If we have a session, try to refresh it to ensure it's valid
+        if (initialSession) {
+          console.log('Session found, validating...');
+          try {
+            // Try to refresh the session to ensure token is valid
+            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+            
+            if (refreshError) {
+              console.warn('Session refresh failed, using cached session:', refreshError.message);
+              // Use the original session even if refresh failed
+              await updateAuthState(initialSession);
+            } else if (refreshedSession) {
+              console.log('Session refreshed successfully');
+              await updateAuthState(refreshedSession);
+            } else {
+              await updateAuthState(initialSession);
+            }
+          } catch (refreshErr) {
+            console.warn('Error refreshing session, using cached:', refreshErr);
+            // Fall back to original session
+            await updateAuthState(initialSession);
+          }
+        } else {
+          console.log('No session found');
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
         }
       } catch (e) {
-        console.error('Error getting initial session:', e);
+        console.error('Error during session recovery:', e);
         if (mounted) {
           setUser(null);
           setSession(null);
           setIsAdmin(false);
-          setIsLoading(false);
         }
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     getInitialSession();
 
-    // Set up auth state listener
+    // Set up auth state listener for realtime updates
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
 
-        console.log('Auth event:', event);
+        console.log('Auth state changed:', event, { hasSession: !!currentSession });
 
-        // Handle logout event
+        // Handle all state changes uniformly
         if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
           setUser(null);
           setSession(null);
           setIsAdmin(false);
           return;
         }
 
-        // Handle sign in and token refresh
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        // For TOKEN_REFRESHED events, ensure we maintain the session
+        if (event === 'TOKEN_REFRESHED' && currentSession) {
+          console.log('Token refreshed, maintaining session');
           await updateAuthState(currentSession);
           return;
         }
 
-        // Default: update state with current session
+        // Always update state with current session (covers SIGNED_IN, USER_UPDATED, etc)
         await updateAuthState(currentSession);
       }
     );

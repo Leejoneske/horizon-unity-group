@@ -10,6 +10,7 @@ import UserLogin from "./pages/UserLogin";
 import UserRegister from "./pages/UserRegister";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import MemberDetailPage from "./pages/MemberDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,7 @@ const AppRoutes = () => (
     <Route path="/dashboard" element={<ProtectedRoute element={<UserDashboard />} />} />
     <Route path="/admin/login" element={<Navigate to="/login" replace />} />
     <Route path="/admin/dashboard" element={<ProtectedRoute element={<AdminDashboard />} requireAdmin={true} />} />
+    <Route path="/admin/member/:userId" element={<ProtectedRoute element={<MemberDetailPage />} requireAdmin={true} />} />
     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
     <Route path="*" element={<NotFound />} />
   </Routes>
