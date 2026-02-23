@@ -177,6 +177,8 @@ export default function UserDashboard() {
       const functionUrl = `${supabaseUrl}/functions/v1/initiate-pesapal-payment`;
       const dailyAmount = profile?.daily_contribution_amount || 100;
 
+      console.log('Calling Edge Function:', functionUrl);
+
       // Call the backend function
       const response = await fetch(functionUrl, {
         method: 'POST',
@@ -191,10 +193,12 @@ export default function UserDashboard() {
         }),
       });
 
+      console.log('Response status:', response.status);
       const result = await response.json();
+      console.log('Response result:', result);
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to initiate payment');
+        throw new Error(result.error || `Failed with status ${response.status}`);
       }
 
       // Payment initiated - show waiting message

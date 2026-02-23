@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { crypto } from "https://deno.land/std@0.182.0/crypto/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Types
 interface PaymentInitRequest {
   userId: string;
   amount: number;
@@ -19,45 +17,11 @@ interface PaymentResponse {
   success: boolean;
   reference?: string;
   error?: string;
+  message?: string;
 }
 
-// Utility function to generate OAuth signature
-function generateOAuthSignature(
-  method: string,
-  url: string,
-  data: Record<string, string>,
-  consumerKey: string,
-  consumerSecret: string
-): string {
-  // Create base string for HMAC
-  const baseString = method + url + JSON.stringify(data).split("").sort().join("");
-
-  // Create signing key
-  const signingKey = consumerSecret + "&";
-
-  // Generate HMAC SHA1
-  const encoder = new TextEncoder();
-  const keyBuffer = encoder.encode(signingKey);
-  const dataBuffer = encoder.encode(baseString);
-
-  // Use SubtleCrypto for HMAC-SHA1
-  return crypto.subtle
-    .sign("HMAC", keyBuffer, dataBuffer)
-    .then((signature: ArrayBuffer) => {
-      // Convert to base64
-      const bytes = new Uint8Array(signature);
-      let binary = "";
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
-    });
-}
-
-// Format phone number to Pesapal format (254XXXXXXXXX)
 function formatPhoneForPesapal(phone: string): string {
   const cleaned = phone.replace(/\D/g, "");
-
   if (cleaned.startsWith("254")) {
     return cleaned;
   } else if (cleaned.startsWith("07") || cleaned.startsWith("01")) {
@@ -65,11 +29,9 @@ function formatPhoneForPesapal(phone: string): string {
   } else if (cleaned.startsWith("7") || cleaned.startsWith("1")) {
     return "254" + cleaned;
   }
-
   return "";
 }
 
-// Generate merchant reference
 function generateMerchantReference(userId: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
@@ -77,17 +39,26 @@ function generateMerchantReference(userId: string): string {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Get environment variables
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const pesapalKey = Deno.env.get("VITE_PESAPAL_CONSUMER_KEY");
     const pesapalSecret = Deno.env.get("VITE_PESAPAL_CONSUMER_SECRET");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+    console.log("Environment check:", {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceRoleKey: !!supabaseServiceRoleKey,
+      hasPesapalKey: !!pesapalKey,
+      hasPesapalSecret: !!pesapalSecret,
+    });
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("Supabase configuration missing");
+    }
 
     if (!pesapalKey || !pesapalSecret) {
       throw new Error("Pesapal credentials not configured");
@@ -96,23 +67,24 @@ Deno.serve(async (req) => {
     // Parse request
     const { userId, amount, phoneNumber, userName } = (await req.json()) as PaymentInitRequest;
 
+    console.log("Received payment request:", { userId, amount, phoneNumber, userName });
+
     if (!userId || !amount || !phoneNumber || !userName) {
-      throw new Error("Missing required fields: userId, amount, phoneNumber, userName");
+      throw new Error("Missing required fields");
     }
 
-    // Format phone number
     const formattedPhone = formatPhoneForPesapal(phoneNumber);
     if (!formattedPhone || formattedPhone.length !== 12) {
       throw new Error("Invalid phone number format");
     }
 
-    // Generate merchant reference
     const merchantReference = generateMerchantReference(userId);
 
-    // Initialize Supabase client
-    const supabase = createClient(supabaseUrl!, supabaseAnonKey!);
+    // Initialize Supabase client with service role
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     // Store payment transaction record
+    console.log("Creating payment transaction...");
     const { data: paymentRecord, error: dbError } = await supabase
       .from("payment_transactions")
       .insert({
@@ -130,9 +102,11 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to create payment record: ${dbError.message}`);
     }
 
+    console.log("Payment record created:", paymentRecord);
+
     // Prepare Pesapal request data
     const pesapalUrl = "https://cybqa.pesapal.com/pesapalapi/api/merchants/InitiatePayment";
-    const paymentData = {
+    const paymentData = new URLSearchParams({
       consumer_key: pesapalKey,
       consumer_secret: pesapalSecret,
       amount: amount.toString(),
@@ -144,42 +118,45 @@ Deno.serve(async (req) => {
       email: `user-${userId}@horizon-unity.local`,
       pesapal_notification_url: `${supabaseUrl}/functions/v1/pesapal-callback`,
       transaction_type: "PAYMENT",
-    };
-
-    console.log("Initiating Pesapal payment:", {
-      amount,
-      reference: merchantReference,
-      phone: formattedPhone,
     });
 
-    // Call Pesapal API
+    console.log("Calling Pesapal API...");
     const pesapalResponse = await fetch(pesapalUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams(paymentData).toString(),
+      body: paymentData.toString(),
     });
 
+    console.log("Pesapal response status:", pesapalResponse.status);
+    const pesapalText = await pesapalResponse.text();
+    console.log("Pesapal response text:", pesapalText);
+
     if (!pesapalResponse.ok) {
-      const errorText = await pesapalResponse.text();
-      console.error("Pesapal API error:", errorText);
-      throw new Error(`Pesapal API error: ${pesapalResponse.status}`);
+      throw new Error(`Pesapal API error: ${pesapalResponse.status} - ${pesapalText}`);
     }
 
-    const pesapalResult = await pesapalResponse.json();
+    // Try to parse as JSON
+    let pesapalResult;
+    try {
+      pesapalResult = JSON.parse(pesapalText);
+    } catch {
+      // If not JSON, treat as success if status 200
+      pesapalResult = { status: "200", message: pesapalText };
+    }
 
-    console.log("Pesapal response:", pesapalResult);
+    console.log("Pesapal result:", pesapalResult);
 
     // Check for success
-    if (pesapalResult.status !== "200") {
+    if (pesapalResult.status !== "200" && pesapalResult.status !== 200) {
       throw new Error(`Pesapal error: ${pesapalResult.error || "Unknown error"}`);
     }
 
-    // Return success response
     const response: PaymentResponse = {
       success: true,
       reference: merchantReference,
+      message: "Payment initiated successfully",
     };
 
     return new Response(JSON.stringify(response), {
@@ -189,9 +166,11 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error in initiate-pesapal-payment:", error);
 
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+
     const response: PaymentResponse = {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
+      error: errorMessage,
     };
 
     return new Response(JSON.stringify(response), {
