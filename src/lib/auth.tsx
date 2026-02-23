@@ -151,12 +151,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Update user last login and online status when they sign in
+  const updateUserActivity = async (userId: string) => {
+    try {
+      await supabase.from('profiles').update({
+        last_login: new Date().toISOString(),
+        is_online: true
+      }).eq('user_id', userId);
+    } catch (e) {
+      console.warn('Could not update user activity:', e);
+    }
+  };
+
   const updateAuthState = async (currentSession: Session | null) => {
     if (currentSession?.user) {
       const admin = await fetchIsAdmin(currentSession.user.id);
       setUser(currentSession.user);
       setSession(currentSession);
       setIsAdmin(admin);
+      // Update user activity when they're authenticated
+      await updateUserActivity(currentSession.user.id);
     } else {
       setUser(null);
       setSession(null);
@@ -243,18 +257,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      // Update last_login timestamp before signing out
+      if (user) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ is_online: false })
+            .eq('user_id', user.id);
+        } catch (e) {
+          console.warn('Could not update user status:', e);
+        }
+      }
+      // Sign out from all sessions globally
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
       if (error) {
         console.error('Sign out error:', error);
-        // Force clear even if error
-        setUser(null);
-        setSession(null);
-        setIsAdmin(false);
-      } else {
-        setUser(null);
-        setSession(null);
-        setIsAdmin(false);
       }
+      // Force clear state regardless of error
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
     } catch (e) {
       console.error('Error during sign out:', e);
       // Force clear even if error
@@ -265,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+
 
   return (
     <AuthContext.Provider value={{ user, session, isAdmin, isLoading, signOut }}>

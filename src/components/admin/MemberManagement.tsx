@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Plus, Minus, Settings, X } from 'lucide-react';
+import { Eye, EyeOff, Plus, Minus, Settings, X, Info } from 'lucide-react';
+import UserDetailDialog from './UserDetailDialog';
 
 interface Member {
   id: string;
@@ -16,6 +17,8 @@ interface Member {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
+  last_login?: string;
+  is_online?: boolean;
 }
 
 interface MemberManagementProps {
@@ -32,6 +35,8 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
   const [newDailyAmount, setNewDailyAmount] = useState('');
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
   const [isContribDialogOpen, setIsContribDialogOpen] = useState(false);
+  const [isUserDetailDialogOpen, setIsUserDetailDialogOpen] = useState(false);
+  const [selectedDetailMember, setSelectedDetailMember] = useState<Member | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -173,6 +178,11 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
     setIsContribDialogOpen(true);
   };
 
+  const openUserDetailDialog = (member: Member) => {
+    setSelectedDetailMember(member);
+    setIsUserDetailDialogOpen(true);
+  };
+
   // Check if all members have balance visible
   const allVisible = members.length > 0 && members.every(m => m.balance_visible);
 
@@ -208,8 +218,11 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
             return (
               <div key={member.id} className="bg-gray-100 rounded-2xl p-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold relative">
                     {member.full_name.substring(0, 2).toUpperCase()}
+                    {member.is_online && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -228,6 +241,13 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
                     <p className="text-sm font-bold text-green-600 mt-1">KES {effectiveBalance.toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => openUserDetailDialog(member)}
+                      className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm hover:bg-blue-50 transition active:scale-95"
+                      title="View user details"
+                    >
+                      <Info className="w-4 h-4 text-blue-600" />
+                    </button>
                     <button 
                       onClick={() => openAdjustDialog(member, 'add')}
                       className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm hover:bg-green-50 transition active:scale-95"
@@ -367,6 +387,19 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
           </div>
         </div>
       )}
-    </>
+
+      {/* User Detail Dialog */}
+      {selectedDetailMember && (
+        <UserDetailDialog 
+          member={selectedDetailMember}
+          isOpen={isUserDetailDialogOpen}
+          onClose={() => {
+            setIsUserDetailDialogOpen(false);
+            setSelectedDetailMember(null);
+          }}
+          adminId={adminId}
+          onRefresh={onRefresh}
+        />
+      )}    </>
   );
 }

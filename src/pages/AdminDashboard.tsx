@@ -16,6 +16,7 @@ import { startOfMonth, endOfMonth, parseISO, format } from 'date-fns';
 import logo from '@/assets/logo.png';
 import MemberManagement from '@/components/admin/MemberManagement';
 import MessageCenter from '@/components/admin/MessageCenter';
+import FinancialTipsWindow from '@/components/FinancialTipsWindow';
 
 interface Member {
   id: string;
@@ -185,39 +186,12 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Stats Card */}
-          {showStatsCard && (
-            <div className="px-4 pb-6">
-              <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-3xl p-6 relative overflow-hidden">
-                <button 
-                  className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white transition"
-                  onClick={() => setShowStatsCard(false)}
-                >
-                  <X className="w-4 h-4 text-gray-600" />
-                </button>
-                
-                {/* Stats Icons */}
-                <div className="flex gap-2 mb-8">
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6">
-                    <span className="text-2xl font-bold text-white">{members.length}</span>
-                  </div>
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform rotate-6">
-                    <TrendingUp className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
-                    <Users className="w-8 h-8 text-white" />
-                  </div>
-                </div>
-
-                {/* Text */}
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-bold text-gray-900">This month,</h3>
-                  <h3 className="text-2xl font-bold text-gray-900">KES {thisMonthTotal.toLocaleString()} collected.</h3>
-                  <p className="text-xl font-semibold text-gray-900">{thisMonthContribs.length} contributions</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Financial Tips Window */}
+          <FinancialTipsWindow 
+            showClose={true}
+            onClose={() => setShowStatsCard(false)}
+            showInitially={showStatsCard}
+          />
 
           {/* Tab Content Based on Active Tab */}
           {activeTab === 'overview' && (

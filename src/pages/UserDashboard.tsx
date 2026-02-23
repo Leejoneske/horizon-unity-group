@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import FinancialTipsWindow from '@/components/FinancialTipsWindow';
 
 interface Contribution {
   id: string;
@@ -325,44 +326,12 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {/* Progress Card - Only show savings info when balance is visible */}
-          {showInviteCard && (
-            <div className="px-4 pb-6">
-              <div className="bg-gradient-to-br from-emerald-50 to-green-100 rounded-3xl p-6 relative overflow-hidden">
-                <button 
-                  className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white transition"
-                  onClick={() => setShowInviteCard(false)}
-                >
-                  <X className="w-4 h-4 text-gray-600" />
-                </button>
-                
-                {/* Stats Icons */}
-                <div className="flex gap-2 mb-8">
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-6">
-                    <span className="text-2xl font-bold text-white">{thisMonthContributions.length}</span>
-                  </div>
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform rotate-6">
-                    <Wallet className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-300 to-green-400 rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3">
-                    <CheckCircle2 className="w-8 h-8 text-white" />
-                  </div>
-                </div>
-
-                {/* Text - Hide amounts if balance not visible */}
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-bold text-gray-900">This month,</h3>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    {profile?.balance_visible 
-                      ? `KES ${thisMonthContributions.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()} saved.`
-                      : `${thisMonthContributions.length} contributions made.`
-                    }
-                  </h3>
-                  <p className="text-xl font-semibold text-gray-900">Keep it up!</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Financial Tips Window */}
+          <FinancialTipsWindow 
+            showClose={true}
+            onClose={() => setShowInviteCard(false)}
+            showInitially={showInviteCard}
+          />
 
           {/* Missed Days Alert */}
           {missedDays > 0 && (
