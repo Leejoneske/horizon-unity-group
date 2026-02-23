@@ -12,11 +12,13 @@ import {
   X,
   LogOut,
   Search,
-  Share2
+  Share2,
+  Phone as PhoneIcon
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import TipsCard from '@/components/TipsCard';
+import PhoneContributionDialog from '@/components/PhoneContributionDialog';
 
 interface Contribution {
   id: string;
@@ -54,6 +56,7 @@ export default function UserDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showInviteCard, setShowInviteCard] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+  const [showPhoneDialog, setShowPhoneDialog] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -306,7 +309,7 @@ export default function UserDashboard() {
 
           {/* Action Buttons Grid */}
           <div className="px-4 pb-6">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button 
                 onClick={handleAddContribution}
                 className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
@@ -315,6 +318,16 @@ export default function UserDashboard() {
                   <Plus className="w-6 h-6 text-gray-900" />
                 </div>
                 <span className="text-base font-semibold text-gray-900">Add money</span>
+              </button>
+              
+              <button 
+                onClick={() => setShowPhoneDialog(true)}
+                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
+              >
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
+                  <PhoneIcon className="w-6 h-6 text-gray-900" />
+                </div>
+                <span className="text-base font-semibold text-gray-900">Via Phone</span>
               </button>
               
               <button className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95">
@@ -544,6 +557,16 @@ export default function UserDashboard() {
           </div>
         </div>
       )}
+
+      {/* Phone Contribution Dialog */}
+      <PhoneContributionDialog
+        isOpen={showPhoneDialog}
+        onClose={() => setShowPhoneDialog(false)}
+        userId={user!.id}
+        userName={profile?.full_name || 'User'}
+        userPhone={profile?.phone_number || ''}
+        defaultAmount={profile?.daily_contribution_amount || 100}
+      />
     </div>
   );
 }

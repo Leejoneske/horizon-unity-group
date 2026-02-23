@@ -2,3 +2,9 @@ project_id = "lelpqanascdeeqfrdhoj"
 
 [functions.send-sms]
 verify_jwt = false
+
+[functions.initiate-pesapal-payment]
+verify_jwt = false
+
+[functions.pesapal-callback]
+verify_jwt = false
