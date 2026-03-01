@@ -17,8 +17,6 @@ interface Member {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
-  last_login?: string;
-  is_online?: boolean;
 }
 
 interface MemberManagementProps {
@@ -218,9 +216,6 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold relative">
                     {member.full_name.substring(0, 2).toUpperCase()}
-                    {member.is_online && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
-                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

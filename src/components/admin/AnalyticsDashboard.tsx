@@ -10,7 +10,7 @@ interface AnalyticsDashboardProps {
 
 export default function AnalyticsDashboard({ members, contributions, totalSavings }: AnalyticsDashboardProps) {
   const metrics = useMemo(() => {
-    const activeCount = members.filter(m => m.member_status === 'active').length;
+    const activeCount = members.length;
     const contributionRate = members.length > 0 ? (contributions.length / (members.length * 30)) * 100 : 0;
     const avgContribution = contributions.length > 0 
       ? contributions.reduce((sum: number, c: any) => sum + Number(c.amount), 0) / contributions.length 
