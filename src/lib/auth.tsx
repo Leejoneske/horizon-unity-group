@@ -155,8 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUserActivity = async (userId: string) => {
     try {
       await supabase.from('profiles').update({
-        last_login: new Date().toISOString(),
-        is_online: true
+        updated_at: new Date().toISOString()
       }).eq('user_id', userId);
     } catch (e) {
       console.warn('Could not update user activity:', e);
@@ -298,7 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await supabase
             .from('profiles')
-            .update({ is_online: false })
+            .update({ updated_at: new Date().toISOString() })
             .eq('user_id', user.id);
         } catch (e) {
           console.warn('Could not update user status:', e);

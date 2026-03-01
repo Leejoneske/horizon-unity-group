@@ -99,8 +99,7 @@ export default function UserDashboard() {
       // If phone_number is missing from profile, extract from auth metadata and update
       if (profileData && !profileData.phone_number && user) {
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        const phoneFromAuth = authUser?.user_metadata?.phone_number 
-          || authUser?.raw_user_meta_data?.phone_number;
+        const phoneFromAuth = authUser?.user_metadata?.phone_number;
 
         if (phoneFromAuth && phoneFromAuth.trim()) {
           // Update profile with phone number from auth

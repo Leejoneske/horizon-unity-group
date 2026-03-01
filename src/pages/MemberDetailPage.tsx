@@ -19,8 +19,6 @@ interface Member {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
-  last_login?: string;
-  is_online?: boolean;
 }
 
 interface Contribution {
@@ -89,9 +87,7 @@ export default function MemberDetailPage() {
           balance_visible: profileData.balance_visible,
           daily_contribution_amount: profileData.daily_contribution_amount,
           balance_adjustment: profileData.balance_adjustment || 0,
-          missed_contributions: profileData.missed_contributions || 0,
-          last_login: profileData.last_login,
-          is_online: profileData.is_online
+          missed_contributions: profileData.missed_contributions || 0
         });
 
         if (contribData) {
@@ -255,8 +251,7 @@ export default function MemberDetailPage() {
   }
 
   const effectiveBalance = member.total_contributions + (member.balance_adjustment || 0);
-  const lastLoginDate = member.last_login ? new Date(member.last_login) : null;
-  const lastLoginText = lastLoginDate ? format(lastLoginDate, 'MMM d, yyyy HH:mm') : 'Never';
+  const lastLoginText = 'N/A';
 
   return (
     <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
@@ -308,7 +303,7 @@ export default function MemberDetailPage() {
                   <p className="text-sm font-medium text-gray-900">{lastLoginText}</p>
                 </div>
               </div>
-              <div className={`w-3 h-3 rounded-full ${member.is_online ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <div className="w-3 h-3 rounded-full bg-gray-400"></div>
             </div>
           </div>
         </div>

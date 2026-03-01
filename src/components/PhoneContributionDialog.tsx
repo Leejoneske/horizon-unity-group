@@ -230,7 +230,7 @@ export default function PhoneContributionDialog({
             </button>
             <button
               onClick={handleInitiatePayment}
-              disabled={paymentStatus === 'loading'}
+              disabled={false}
               className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl font-semibold text-white hover:from-green-600 hover:to-emerald-700 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
             >
               <Send className="w-4 h-4" />

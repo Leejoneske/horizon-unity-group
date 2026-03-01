@@ -26,11 +26,10 @@ export default function AdminSettings({ adminId }: AdminSettingProps) {
     try {
       const { data } = await supabase
         .from('admin_settings')
-        .select('*')
-        .eq('admin_id', adminId);
+        .select('setting_key, setting_value');
 
       if (data) {
-        data.forEach(setting => {
+        data.forEach((setting: { setting_key: string; setting_value: string }) => {
           switch (setting.setting_key) {
             case 'min_contribution':
               setMinContribution(setting.setting_value);

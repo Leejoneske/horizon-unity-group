@@ -130,9 +130,9 @@ export const FINANCIAL_TIPS = [
 /**
  * Get a random financial tip or quote
  */
-export const getRandomTip = () => {
+export const getRandomTip = (): { category: 'streak' | 'money' | 'growth'; content: string; icon: string } => {
   const randomIndex = Math.floor(Math.random() * FINANCIAL_TIPS.length);
-  return FINANCIAL_TIPS[randomIndex];
+  return FINANCIAL_TIPS[randomIndex] as { category: 'streak' | 'money' | 'growth'; content: string; icon: string };
 };
 
 /**
