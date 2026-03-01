@@ -15,7 +15,8 @@ import {
   LogIn,
   Edit3,
   AlertCircle,
-  SendHorizontal
+  SendHorizontal,
+  CalendarRange
 } from 'lucide-react';
 import { startOfMonth, endOfMonth, parseISO, format } from 'date-fns';
 import logo from '@/assets/logo.png';
@@ -26,6 +27,7 @@ import MemberSearchFilter from '@/components/admin/MemberSearchFilter';
 import AuditLogViewer from '@/components/admin/AuditLogViewer';
 import AnnouncementsManager from '@/components/admin/AnnouncementsManager';
 import AdminSettings from '@/components/admin/AdminSettings';
+import CycleManagement from '@/components/admin/CycleManagement';
 
 interface Member {
   id: string;
@@ -54,7 +56,7 @@ export default function AdminDashboard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [recentContributions, setRecentContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'audit' | 'announcements' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'audit' | 'announcements' | 'settings' | 'cycles'>('overview');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -239,6 +241,16 @@ export default function AdminDashboard() {
               </button>
 
               <button 
+                onClick={() => setActiveTab('cycles')}
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'cycles' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <CalendarRange className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Cycles</span>
+              </button>
+
+              <button 
                 onClick={() => setActiveTab('settings')}
                 className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
                   activeTab === 'settings' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -354,6 +366,12 @@ export default function AdminDashboard() {
               adminId={user!.id}
               onRefresh={fetchData}
             />
+          )}
+
+          {activeTab === 'cycles' && (
+            <div className="px-4 pb-6">
+              <CycleManagement adminId={user!.id} />
+            </div>
           )}
 
           {activeTab === 'settings' && (

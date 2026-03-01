@@ -44,6 +44,14 @@ interface AdminMessage {
   created_at: string;
 }
 
+interface ActiveCycle {
+  id: string;
+  cycle_name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+}
+
 export default function UserDashboard() {
   const { user, signOut, isAdmin, isLoading: authLoading } = useAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
@@ -56,6 +64,7 @@ export default function UserDashboard() {
   const [showHistory, setShowHistory] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
+  const [activeCycle, setActiveCycle] = useState<ActiveCycle | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -73,7 +82,7 @@ export default function UserDashboard() {
 
   const fetchData = async () => {
     try {
-      const [contribRes, profileRes, messagesRes] = await Promise.all([
+      const [contribRes, profileRes, messagesRes, cycleRes] = await Promise.all([
         supabase
           .from('contributions')
           .select('*')
@@ -89,7 +98,13 @@ export default function UserDashboard() {
           .select('*')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
-          .limit(5)
+          .limit(5),
+        supabase
+          .from('savings_cycles')
+          .select('*')
+          .eq('status', 'active')
+          .limit(1)
+          .single()
       ]);
 
       if (contribRes.data) setContributions(contribRes.data);
@@ -118,6 +133,8 @@ export default function UserDashboard() {
       
       if (profileData) setProfile(profileData);
       if (messagesRes.data) setMessages(messagesRes.data);
+      if (cycleRes.data) setActiveCycle(cycleRes.data as ActiveCycle);
+      else setActiveCycle(null);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -137,6 +154,10 @@ export default function UserDashboard() {
   };
 
   const handleAddContribution = async () => {
+    if (!activeCycle) {
+      toast({ title: 'No active cycle', description: 'Deposits are disabled until admin starts a new savings cycle.', variant: 'destructive' });
+      return;
+    }
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       const existingToday = contributions.find(c => c.contribution_date === today);
@@ -226,6 +247,10 @@ export default function UserDashboard() {
   };
 
   const handleAddContributionForDate = async (date: Date) => {
+    if (!activeCycle) {
+      toast({ title: 'No active cycle', description: 'Deposits are disabled until admin starts a new savings cycle.', variant: 'destructive' });
+      return;
+    }
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -389,6 +414,18 @@ export default function UserDashboard() {
                   <Wallet className="w-6 h-6 text-white" />
                 </div>
               </div>
+              {/* Cycle Status */}
+              {activeCycle ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-xs text-gray-500 font-medium">{activeCycle.cycle_name} · ends {format(parseISO(activeCycle.end_date), 'MMM d')}</span>
+                </div>
+              ) : (
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-red-400 rounded-full" />
+                  <span className="text-xs text-red-500 font-medium">No active cycle — deposits paused</span>
+                </div>
+              )}
             </div>
           </div>
 

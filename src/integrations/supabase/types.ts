@@ -167,6 +167,42 @@ export type Database = {
         }
         Relationships: []
       }
+      savings_cycles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          cycle_name: string
+          end_date: string
+          id: string
+          notes: string | null
+          start_date: string
+          status: string
+          total_savings: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          cycle_name: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          start_date: string
+          status?: string
+          total_savings?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          cycle_name?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          total_savings?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
