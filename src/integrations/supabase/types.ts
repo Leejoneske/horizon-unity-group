@@ -128,6 +128,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          contribution_date: string | null
+          created_at: string
+          id: string
+          merchant_reference: string
+          pesapal_transaction_id: string | null
+          phone_number: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          contribution_date?: string | null
+          created_at?: string
+          id?: string
+          merchant_reference: string
+          pesapal_transaction_id?: string | null
+          phone_number: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          contribution_date?: string | null
+          created_at?: string
+          id?: string
+          merchant_reference?: string
+          pesapal_transaction_id?: string | null
+          phone_number?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           balance_adjustment: number
