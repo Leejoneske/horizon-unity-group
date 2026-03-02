@@ -2,8 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface PaymentInitRequest {
@@ -40,14 +39,14 @@ function generateMerchantReference(userId: string): string {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const pesapalKey = Deno.env.get("VITE_PESAPAL_CONSUMER_KEY");
-    const pesapalSecret = Deno.env.get("VITE_PESAPAL_CONSUMER_SECRET");
+    const pesapalKey = Deno.env.get("PESAPAL_CONSUMER_KEY");
+    const pesapalSecret = Deno.env.get("PESAPAL_CONSUMER_SECRET");
 
     console.log("Environment check:", {
       hasSupabaseUrl: !!supabaseUrl,
@@ -61,7 +60,7 @@ Deno.serve(async (req) => {
     }
 
     if (!pesapalKey || !pesapalSecret) {
-      throw new Error("Pesapal credentials not configured");
+      throw new Error("Pesapal credentials not configured. Please add PESAPAL_CONSUMER_KEY and PESAPAL_CONSUMER_SECRET.");
     }
 
     // Parse request
@@ -104,59 +103,88 @@ Deno.serve(async (req) => {
 
     console.log("Payment record created:", paymentRecord);
 
-    // Prepare Pesapal request data
-    const pesapalUrl = "https://cybqa.pesapal.com/pesapalapi/api/merchants/InitiatePayment";
-    const paymentData = new URLSearchParams({
-      consumer_key: pesapalKey,
-      consumer_secret: pesapalSecret,
-      amount: amount.toString(),
-      currency: "KES",
-      description: `Daily contribution from ${userName}`,
-      reference: merchantReference,
-      first_name: userName,
-      phone_number: formattedPhone,
-      email: `user-${userId}@horizon-unity.local`,
-      pesapal_notification_url: `${supabaseUrl}/functions/v1/pesapal-callback`,
-      transaction_type: "PAYMENT",
+    // Step 1: Get Pesapal auth token
+    const tokenUrl = "https://cybqa.pesapal.com/pesapalv3/api/Auth/RequestToken";
+    const tokenResponse = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({
+        consumer_key: pesapalKey,
+        consumer_secret: pesapalSecret,
+      }),
     });
 
-    console.log("Calling Pesapal API...");
-    const pesapalResponse = await fetch(pesapalUrl, {
+    const tokenResult = await tokenResponse.json();
+    console.log("Token response status:", tokenResponse.status);
+
+    if (!tokenResponse.ok || tokenResult.error) {
+      throw new Error(`Pesapal auth failed: ${tokenResult.error?.message || tokenResponse.statusText}`);
+    }
+
+    const authToken = tokenResult.token;
+
+    // Step 2: Register IPN URL
+    const ipnUrl = `${supabaseUrl}/functions/v1/pesapal-callback`;
+    const ipnResponse = await fetch("https://cybqa.pesapal.com/pesapalv3/api/URLSetup/RegisterIPN", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": `Bearer ${authToken}`,
       },
-      body: paymentData.toString(),
+      body: JSON.stringify({
+        url: ipnUrl,
+        ipn_notification_type: "POST",
+      }),
     });
 
-    console.log("Pesapal response status:", pesapalResponse.status);
-    const pesapalText = await pesapalResponse.text();
-    console.log("Pesapal response text:", pesapalText);
+    const ipnResult = await ipnResponse.json();
+    console.log("IPN registration:", ipnResult);
 
-    if (!pesapalResponse.ok) {
-      throw new Error(`Pesapal API error: ${pesapalResponse.status} - ${pesapalText}`);
+    const notificationId = ipnResult.ipn_id;
+
+    // Step 3: Submit order
+    const orderResponse = await fetch("https://cybqa.pesapal.com/pesapalv3/api/Transactions/SubmitOrderRequest", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        id: merchantReference,
+        currency: "KES",
+        amount: amount,
+        description: `Daily contribution from ${userName}`,
+        callback_url: `${supabaseUrl}/functions/v1/pesapal-callback`,
+        notification_id: notificationId,
+        billing_address: {
+          phone_number: formattedPhone,
+          first_name: userName,
+          email_address: `user-${userId.substring(0, 8)}@horizon-unity.local`,
+        },
+      }),
+    });
+
+    const orderResult = await orderResponse.json();
+    console.log("Order submission result:", orderResult);
+
+    if (!orderResponse.ok || orderResult.error) {
+      throw new Error(`Pesapal order error: ${orderResult.error?.message || orderResponse.statusText}`);
     }
 
-    // Try to parse as JSON
-    let pesapalResult;
-    try {
-      pesapalResult = JSON.parse(pesapalText);
-    } catch {
-      // If not JSON, treat as success if status 200
-      pesapalResult = { status: "200", message: pesapalText };
-    }
-
-    console.log("Pesapal result:", pesapalResult);
-
-    // Check for success
-    if (pesapalResult.status !== "200" && pesapalResult.status !== 200) {
-      throw new Error(`Pesapal error: ${pesapalResult.error || "Unknown error"}`);
+    // Update payment record with tracking ID
+    if (orderResult.order_tracking_id) {
+      await supabase
+        .from("payment_transactions")
+        .update({ pesapal_transaction_id: orderResult.order_tracking_id })
+        .eq("id", paymentRecord.id);
     }
 
     const response: PaymentResponse = {
       success: true,
       reference: merchantReference,
-      message: "Payment initiated successfully",
+      message: "Payment initiated successfully. Check your phone for M-Pesa prompt.",
     };
 
     return new Response(JSON.stringify(response), {

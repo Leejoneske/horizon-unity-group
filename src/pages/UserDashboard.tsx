@@ -199,11 +199,16 @@ export default function UserDashboard() {
 
       console.log('Calling Edge Function:', functionUrl);
 
+      // Get current session token for auth
+      const { data: { session } } = await supabase.auth.getSession();
+
       // Call the backend function
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
         },
         body: JSON.stringify({
           userId: user!.id,
@@ -550,14 +555,38 @@ export default function UserDashboard() {
           <div className="px-4 pb-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-600">Recent</h3>
-              {profile?.balance_visible && contributions.length > 3 && (
-                <button 
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="text-sm font-medium text-blue-600"
-                >
-                  {showHistory ? 'Show less' : 'View all'}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {profile?.balance_visible && contributions.length > 0 && (
+                  <button
+                    onClick={() => {
+                      let csv = 'Date,Amount (KES),Status\n';
+                      contributions.forEach(c => {
+                        csv += `${c.contribution_date},${c.amount},${c.status}\n`;
+                      });
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `contributions_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast({ title: 'Downloaded', description: 'Your contribution history has been saved.' });
+                    }}
+                    className="text-xs font-medium text-gray-500 flex items-center gap-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    CSV
+                  </button>
+                )}
+                {profile?.balance_visible && contributions.length > 3 && (
+                  <button 
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="text-sm font-medium text-gray-900"
+                  >
+                    {showHistory ? 'Show less' : 'View all'}
+                  </button>
+                )}
+              </div>
             </div>
             
             {contributions.length === 0 ? (
