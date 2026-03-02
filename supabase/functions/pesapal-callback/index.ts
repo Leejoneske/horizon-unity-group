@@ -2,23 +2,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface PesapalCallback {
-  OrderMerchantReference: string;
-  OrderTrackingId: string;
-  OrderNotificationType: string;
-  OrderStatus: string;
-  OrderAmount: string;
-  [key: string]: string;
-}
-
 Deno.serve(async (req) => {
-  // Handle CORS
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -29,23 +18,32 @@ Deno.serve(async (req) => {
       throw new Error("Supabase configuration missing");
     }
 
-    // Initialize Supabase with service role (admin privileges)
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Parse callback data
-    const callbackData = (await req.json()) as PesapalCallback;
+    // Parse callback data - could be JSON body or URL query params
+    let merchantReference = "";
+    let pesapalTransactionId = "";
+    let status = "unknown";
 
-    console.log("Received Pesapal callback:", callbackData);
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      merchantReference = url.searchParams.get("OrderMerchantReference") || "";
+      pesapalTransactionId = url.searchParams.get("OrderTrackingId") || "";
+      status = (url.searchParams.get("OrderNotificationType") || "unknown").toLowerCase();
+    } else {
+      const body = await req.json();
+      merchantReference = body.OrderMerchantReference || "";
+      pesapalTransactionId = body.OrderTrackingId || "";
+      status = (body.OrderNotificationType || body.OrderStatus || "unknown").toLowerCase();
+    }
 
-    const merchantReference = callbackData.OrderMerchantReference;
-    const pesapalTransactionId = callbackData.OrderTrackingId;
-    const status = callbackData.OrderStatus?.toLowerCase() || "unknown";
+    console.log("Received Pesapal callback:", { merchantReference, pesapalTransactionId, status });
 
     if (!merchantReference) {
       throw new Error("Missing merchant reference in callback");
     }
 
-    // Find payment transaction by merchant reference
+    // Find payment transaction
     const { data: paymentRecord, error: fetchError } = await supabase
       .from("payment_transactions")
       .select("id, user_id, amount, phone_number")
@@ -56,38 +54,69 @@ Deno.serve(async (req) => {
       console.error("Payment record not found:", merchantReference);
       return new Response(JSON.stringify({ error: "Payment record not found" }), {
         status: 404,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Map Pesapal status to our status
+    // If we have a tracking ID, check transaction status with PesaPal API
     let paymentStatus = "pending";
-    if (status === "completed" || status === "success") {
-      paymentStatus = "confirmed";
-    } else if (status === "failed" || status === "error") {
-      paymentStatus = "failed";
-    } else if (status === "cancelled") {
-      paymentStatus = "cancelled";
+    
+    if (pesapalTransactionId) {
+      const pesapalKey = Deno.env.get("PESAPAL_CONSUMER_KEY");
+      const pesapalSecret = Deno.env.get("PESAPAL_CONSUMER_SECRET");
+
+      if (pesapalKey && pesapalSecret) {
+        try {
+          // Get auth token
+          const tokenRes = await fetch("https://cybqa.pesapal.com/pesapalv3/api/Auth/RequestToken", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ consumer_key: pesapalKey, consumer_secret: pesapalSecret }),
+          });
+          const tokenData = await tokenRes.json();
+
+          if (tokenData.token) {
+            // Check transaction status
+            const statusRes = await fetch(
+              `https://cybqa.pesapal.com/pesapalv3/api/Transactions/GetTransactionStatus?orderTrackingId=${pesapalTransactionId}`,
+              {
+                headers: { "Accept": "application/json", "Authorization": `Bearer ${tokenData.token}` },
+              }
+            );
+            const statusData = await statusRes.json();
+            console.log("PesaPal status check:", statusData);
+
+            const pesapalStatus = (statusData.payment_status_description || "").toLowerCase();
+            if (pesapalStatus === "completed") paymentStatus = "confirmed";
+            else if (pesapalStatus === "failed") paymentStatus = "failed";
+            else if (pesapalStatus === "cancelled" || pesapalStatus === "reversed") paymentStatus = "cancelled";
+          }
+        } catch (e) {
+          console.error("Error checking PesaPal status:", e);
+          // Fall back to callback status
+          if (status === "completed" || status === "success") paymentStatus = "confirmed";
+          else if (status === "failed" || status === "error") paymentStatus = "failed";
+        }
+      }
+    } else {
+      if (status === "completed" || status === "success") paymentStatus = "confirmed";
+      else if (status === "failed" || status === "error") paymentStatus = "failed";
+      else if (status === "cancelled") paymentStatus = "cancelled";
     }
 
     // Update payment transaction
-    const { error: updateError } = await supabase
+    await supabase
       .from("payment_transactions")
       .update({
         status: paymentStatus,
-        pesapal_transaction_id: pesapalTransactionId,
+        pesapal_transaction_id: pesapalTransactionId || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", paymentRecord.id);
 
-    if (updateError) {
-      console.error("Failed to update payment:", updateError);
-      throw updateError;
-    }
-
     // If payment confirmed, register contribution
     if (paymentStatus === "confirmed") {
-      const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      const today = new Date().toISOString().split("T")[0];
 
       const { error: contributionError } = await supabase
         .from("contributions")
@@ -101,47 +130,27 @@ Deno.serve(async (req) => {
 
       if (contributionError) {
         console.error("Failed to create contribution:", contributionError);
-        // Don't throw - payment was confirmed, contribution record failed but payment is valid
       } else {
         console.log("Contribution created for user:", paymentRecord.user_id);
       }
 
-      // Update payment record with contribution date
       await supabase
         .from("payment_transactions")
-        .update({
-          contribution_date: today,
-        })
+        .update({ contribution_date: today })
         .eq("id", paymentRecord.id);
     }
 
     console.log(`Payment ${merchantReference} status updated to: ${paymentStatus}`);
 
-    // Return success response to Pesapal
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Callback processed successfully",
-        reference: merchantReference,
-        status: paymentStatus,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ success: true, message: "Callback processed", reference: merchantReference, status: paymentStatus }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error processing Pesapal callback:", error);
-
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
