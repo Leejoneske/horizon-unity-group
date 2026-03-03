@@ -61,21 +61,44 @@ export default function MemberDetailPage() {
     try {
       setIsLoading(true);
 
-      // Fetch member profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+      // Fetch profile and active cycle in parallel
+      const [profileRes, cycleRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('user_id', userId).single(),
+        supabase.from('savings_cycles').select('*').eq('status', 'active').single()
+      ]);
+
+      const profileData = profileRes.data;
+      const activeCycleData = cycleRes.data;
 
       if (profileData) {
-        const { data: contribData } = await supabase
+        // Fetch contributions scoped to active cycle
+        let contribQuery = supabase
           .from('contributions')
           .select('*')
           .eq('user_id', userId)
           .order('contribution_date', { ascending: false });
 
+        if (activeCycleData) {
+          contribQuery = contribQuery
+            .gte('contribution_date', activeCycleData.start_date)
+            .lte('contribution_date', activeCycleData.end_date);
+        }
+
+        const { data: contribData } = await contribQuery;
+
         const totalContribs = contribData ? contribData.reduce((sum, c) => sum + Number(c.amount), 0) : 0;
+
+        // Calculate missed days based on cycle
+        let missedDays = 0;
+        if (activeCycleData) {
+          const today = new Date();
+          const cycleStart = new Date(activeCycleData.start_date);
+          const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+          const endDay = yesterday < cycleStart ? cycleStart : yesterday;
+          const totalDays = Math.max(0, Math.floor((endDay.getTime() - cycleStart.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+          const contributedDays = contribData?.length || 0;
+          missedDays = Math.max(0, totalDays - contributedDays);
+        }
 
         setMember({
           id: profileData.id,
@@ -87,14 +110,13 @@ export default function MemberDetailPage() {
           balance_visible: profileData.balance_visible,
           daily_contribution_amount: profileData.daily_contribution_amount,
           balance_adjustment: profileData.balance_adjustment || 0,
-          missed_contributions: profileData.missed_contributions || 0
+          missed_contributions: missedDays
         });
 
         if (contribData) {
           setContributions(contribData);
         }
 
-        // Set contribution amount from member's daily amount
         if (profileData.daily_contribution_amount) {
           setContributionAmount(profileData.daily_contribution_amount.toString());
         }
@@ -251,7 +273,10 @@ export default function MemberDetailPage() {
   }
 
   const effectiveBalance = member.total_contributions + (member.balance_adjustment || 0);
-  const lastLoginText = 'N/A';
+  const lastContribution = contributions.length > 0 ? contributions[0] : null;
+  const lastLoginText = lastContribution 
+    ? format(parseISO(lastContribution.contribution_date), 'MMM d, yyyy')
+    : 'No activity yet';
 
   return (
     <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
@@ -299,7 +324,7 @@ export default function MemberDetailPage() {
               <div className="flex items-center gap-3">
                 <Clock className="w-4 h-4 text-blue-600" />
                 <div>
-                  <p className="text-xs font-semibold text-gray-600">Last Login</p>
+                  <p className="text-xs font-semibold text-gray-600">Last Contribution</p>
                   <p className="text-sm font-medium text-gray-900">{lastLoginText}</p>
                 </div>
               </div>

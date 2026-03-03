@@ -82,12 +82,7 @@ export default function UserDashboard() {
 
   const fetchData = async () => {
     try {
-      const [contribRes, profileRes, messagesRes, cycleRes] = await Promise.all([
-        supabase
-          .from('contributions')
-          .select('*')
-          .eq('user_id', user!.id)
-          .order('contribution_date', { ascending: false }),
+      const [profileRes, messagesRes, cycleRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
@@ -107,7 +102,25 @@ export default function UserDashboard() {
           .single()
       ]);
 
-      if (contribRes.data) setContributions(contribRes.data);
+      const activeCycleData = cycleRes.data as ActiveCycle | null;
+      if (activeCycleData) setActiveCycle(activeCycleData);
+      else setActiveCycle(null);
+
+      // Fetch contributions scoped to active cycle
+      let contribQuery = supabase
+        .from('contributions')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('contribution_date', { ascending: false });
+
+      if (activeCycleData) {
+        contribQuery = contribQuery
+          .gte('contribution_date', activeCycleData.start_date)
+          .lte('contribution_date', activeCycleData.end_date);
+      }
+
+      const { data: contribData } = await contribQuery;
+      if (contribData) setContributions(contribData);
       
       let profileData = profileRes.data;
       
@@ -133,8 +146,6 @@ export default function UserDashboard() {
       
       if (profileData) setProfile(profileData);
       if (messagesRes.data) setMessages(messagesRes.data);
-      if (cycleRes.data) setActiveCycle(cycleRes.data as ActiveCycle);
-      else setActiveCycle(null);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -143,13 +154,19 @@ export default function UserDashboard() {
   };
 
   const calculateMissedDays = () => {
-    if (contributions.length === 0) return 0;
+    if (!activeCycle) return 0;
     const today = startOfDay(new Date());
+    const cycleStart = startOfDay(parseISO(activeCycle.start_date));
+    const cycleEnd = startOfDay(parseISO(activeCycle.end_date));
+    const lastCountableDay = today <= cycleEnd ? today : cycleEnd;
+    // Count days from cycle start to yesterday (today isn't over yet)
     const yesterday = startOfDay(new Date(today.getTime() - 24 * 60 * 60 * 1000));
-    const contributionDates = contributions.map(c => startOfDay(parseISO(c.contribution_date)));
-    const earliestContrib = contributionDates[contributionDates.length - 1];
-    const totalDays = Math.max(0, differenceInDays(yesterday, earliestContrib) + 1);
-    const contributedDays = contributions.length;
+    const endDay = yesterday < cycleStart ? cycleStart : (yesterday <= cycleEnd ? yesterday : cycleEnd);
+    const totalDays = Math.max(0, differenceInDays(endDay, cycleStart) + 1);
+    const contributedDays = contributions.filter(c => {
+      const d = startOfDay(parseISO(c.contribution_date));
+      return d >= cycleStart && d <= endDay;
+    }).length;
     return Math.max(0, totalDays - contributedDays);
   };
 
@@ -226,18 +243,27 @@ export default function UserDashboard() {
         throw new Error(result.error || `Failed with status ${response.status}`);
       }
 
-      // Payment initiated - show waiting message
       setShowPaymentConfirm(false);
-      
-      toast({
-        title: '✅ Payment Initiated',
-        description: `Check your phone for M-Pesa prompt. Enter your PIN to complete the payment.`,
-      });
 
-      // Wait a bit then close and refresh
+      // If PesaPal returned a redirect URL, open it for the user to complete payment
+      if (result.redirectUrl) {
+        toast({
+          title: '🔗 Complete Payment',
+          description: 'Opening PesaPal payment page. Complete payment there, then return here.',
+        });
+        // Open in new tab so user can return
+        window.open(result.redirectUrl, '_blank');
+      } else {
+        toast({
+          title: '✅ Payment Initiated',
+          description: 'Check your phone for the M-Pesa prompt. Enter your PIN to complete.',
+        });
+      }
+
+      // Refresh data after a delay
       setTimeout(() => {
         fetchData();
-      }, 2000);
+      }, 5000);
 
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process payment';
