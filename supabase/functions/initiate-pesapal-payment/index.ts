@@ -15,6 +15,7 @@ interface PaymentInitRequest {
 interface PaymentResponse {
   success: boolean;
   reference?: string;
+  redirectUrl?: string | null;
   error?: string;
   message?: string;
 }
@@ -184,7 +185,10 @@ Deno.serve(async (req) => {
     const response: PaymentResponse = {
       success: true,
       reference: merchantReference,
-      message: "Payment initiated successfully. Check your phone for M-Pesa prompt.",
+      redirectUrl: orderResult.redirect_url || null,
+      message: orderResult.redirect_url 
+        ? "Payment page ready. Complete payment on the PesaPal page."
+        : "Payment initiated successfully.",
     };
 
     return new Response(JSON.stringify(response), {
