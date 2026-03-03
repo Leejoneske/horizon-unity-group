@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       if (pesapalKey && pesapalSecret) {
         try {
           // Get auth token
-          const tokenRes = await fetch("https://cybqa.pesapal.com/pesapalv3/api/Auth/RequestToken", {
+          const tokenRes = await fetch("https://pay.pesapal.com/v3/api/Auth/RequestToken", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
             body: JSON.stringify({ consumer_key: pesapalKey, consumer_secret: pesapalSecret }),
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
           if (tokenData.token) {
             // Check transaction status
             const statusRes = await fetch(
-              `https://cybqa.pesapal.com/pesapalv3/api/Transactions/GetTransactionStatus?orderTrackingId=${pesapalTransactionId}`,
+              `https://pay.pesapal.com/v3/api/Transactions/GetTransactionStatus?orderTrackingId=${pesapalTransactionId}`,
               {
                 headers: { "Accept": "application/json", "Authorization": `Bearer ${tokenData.token}` },
               }

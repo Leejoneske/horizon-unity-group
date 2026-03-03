@@ -71,8 +71,23 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
+      // Fetch active cycle to scope balances
+      const { data: activeCycleData } = await supabase
+        .from('savings_cycles')
+        .select('*')
+        .eq('status', 'active')
+        .single();
+
       const { data: profilesData } = await supabase.from('profiles').select('*');
-      const { data: contributionsData } = await supabase.from('contributions').select('*').order('contribution_date', { ascending: false });
+      
+      // Build contributions query - scope to active cycle if one exists
+      let contributionsQuery = supabase.from('contributions').select('*').order('contribution_date', { ascending: false });
+      if (activeCycleData) {
+        contributionsQuery = contributionsQuery
+          .gte('contribution_date', activeCycleData.start_date)
+          .lte('contribution_date', activeCycleData.end_date);
+      }
+      const { data: contributionsData } = await contributionsQuery;
 
       if (profilesData && contributionsData) {
         const nonAdminProfiles = profilesData.filter(profile => profile.user_id !== user?.id);
@@ -86,7 +101,9 @@ export default function AdminDashboard() {
         });
         setMembers(membersWithStats);
 
-        const recentWithNames = contributionsData.slice(0, 20).map(c => {
+        // For recent activity, fetch all recent (not cycle-scoped)
+        const { data: allRecent } = await supabase.from('contributions').select('*').order('contribution_date', { ascending: false }).limit(20);
+        const recentWithNames = (allRecent || []).map(c => {
           const profile = profilesData.find(p => p.user_id === c.user_id);
           return { ...c, profiles: profile ? { full_name: profile.full_name } : null };
         });

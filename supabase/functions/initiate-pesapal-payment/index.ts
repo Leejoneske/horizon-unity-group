@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     console.log("Payment record created:", paymentRecord);
 
     // Step 1: Get Pesapal auth token
-    const tokenUrl = "https://cybqa.pesapal.com/pesapalv3/api/Auth/RequestToken";
+    const tokenUrl = "https://pay.pesapal.com/v3/api/Auth/RequestToken";
     const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
     // Step 2: Register IPN URL
     const ipnUrl = `${supabaseUrl}/functions/v1/pesapal-callback`;
-    const ipnResponse = await fetch("https://cybqa.pesapal.com/pesapalv3/api/URLSetup/RegisterIPN", {
+    const ipnResponse = await fetch("https://pay.pesapal.com/v3/api/URLSetup/RegisterIPN", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     const notificationId = ipnResult.ipn_id;
 
     // Step 3: Submit order
-    const orderResponse = await fetch("https://cybqa.pesapal.com/pesapalv3/api/Transactions/SubmitOrderRequest", {
+    const orderResponse = await fetch("https://pay.pesapal.com/v3/api/Transactions/SubmitOrderRequest", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
