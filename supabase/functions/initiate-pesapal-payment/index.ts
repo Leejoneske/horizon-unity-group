@@ -10,25 +10,14 @@ interface PaymentInitRequest {
   amount: number;
   phoneNumber: string;
   userName: string;
-}
-
-interface PaymentResponse {
-  success: boolean;
-  reference?: string;
-  redirectUrl?: string | null;
-  error?: string;
-  message?: string;
+  callbackPageUrl?: string;
 }
 
 function formatPhoneForPesapal(phone: string): string {
   const cleaned = phone.replace(/\D/g, "");
-  if (cleaned.startsWith("254")) {
-    return cleaned;
-  } else if (cleaned.startsWith("07") || cleaned.startsWith("01")) {
-    return "254" + cleaned.substring(1);
-  } else if (cleaned.startsWith("7") || cleaned.startsWith("1")) {
-    return "254" + cleaned;
-  }
+  if (cleaned.startsWith("254")) return cleaned;
+  if (cleaned.startsWith("07") || cleaned.startsWith("01")) return "254" + cleaned.substring(1);
+  if (cleaned.startsWith("7") || cleaned.startsWith("1")) return "254" + cleaned;
   return "";
 }
 
@@ -49,42 +38,20 @@ Deno.serve(async (req) => {
     const pesapalKey = Deno.env.get("PESAPAL_CONSUMER_KEY");
     const pesapalSecret = Deno.env.get("PESAPAL_CONSUMER_SECRET");
 
-    console.log("Environment check:", {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasServiceRoleKey: !!supabaseServiceRoleKey,
-      hasPesapalKey: !!pesapalKey,
-      hasPesapalSecret: !!pesapalSecret,
-    });
+    if (!supabaseUrl || !supabaseServiceRoleKey) throw new Error("Supabase configuration missing");
+    if (!pesapalKey || !pesapalSecret) throw new Error("Pesapal credentials not configured.");
 
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      throw new Error("Supabase configuration missing");
-    }
+    const { userId, amount, phoneNumber, userName, callbackPageUrl } = (await req.json()) as PaymentInitRequest;
 
-    if (!pesapalKey || !pesapalSecret) {
-      throw new Error("Pesapal credentials not configured. Please add PESAPAL_CONSUMER_KEY and PESAPAL_CONSUMER_SECRET.");
-    }
-
-    // Parse request
-    const { userId, amount, phoneNumber, userName } = (await req.json()) as PaymentInitRequest;
-
-    console.log("Received payment request:", { userId, amount, phoneNumber, userName });
-
-    if (!userId || !amount || !phoneNumber || !userName) {
-      throw new Error("Missing required fields");
-    }
+    if (!userId || !amount || !phoneNumber || !userName) throw new Error("Missing required fields");
 
     const formattedPhone = formatPhoneForPesapal(phoneNumber);
-    if (!formattedPhone || formattedPhone.length !== 12) {
-      throw new Error("Invalid phone number format");
-    }
+    if (!formattedPhone || formattedPhone.length !== 12) throw new Error("Invalid phone number format");
 
     const merchantReference = generateMerchantReference(userId);
-
-    // Initialize Supabase client with service role
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Store payment transaction record
-    console.log("Creating payment transaction...");
+    // Store payment transaction
     const { data: paymentRecord, error: dbError } = await supabase
       .from("payment_transactions")
       .insert({
@@ -97,67 +64,42 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
-    if (dbError) {
-      console.error("Database error:", dbError);
-      throw new Error(`Failed to create payment record: ${dbError.message}`);
-    }
+    if (dbError) throw new Error(`Failed to create payment record: ${dbError.message}`);
 
-    console.log("Payment record created:", paymentRecord);
+    console.log("Payment record created:", paymentRecord.id);
 
-    // Step 1: Get Pesapal auth token
-    const tokenUrl = "https://pay.pesapal.com/v3/api/Auth/RequestToken";
-    const tokenResponse = await fetch(tokenUrl, {
+    // Step 1: Get auth token
+    const tokenResponse = await fetch("https://pay.pesapal.com/v3/api/Auth/RequestToken", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({
-        consumer_key: pesapalKey,
-        consumer_secret: pesapalSecret,
-      }),
+      body: JSON.stringify({ consumer_key: pesapalKey, consumer_secret: pesapalSecret }),
     });
-
     const tokenResult = await tokenResponse.json();
-    console.log("Token response status:", tokenResponse.status);
-
-    if (!tokenResponse.ok || tokenResult.error) {
-      throw new Error(`Pesapal auth failed: ${tokenResult.error?.message || tokenResponse.statusText}`);
-    }
-
+    if (!tokenResponse.ok || tokenResult.error) throw new Error(`Pesapal auth failed: ${tokenResult.error?.message || tokenResponse.statusText}`);
     const authToken = tokenResult.token;
 
-    // Step 2: Register IPN URL
+    // Step 2: Register IPN
     const ipnUrl = `${supabaseUrl}/functions/v1/pesapal-callback`;
     const ipnResponse = await fetch("https://pay.pesapal.com/v3/api/URLSetup/RegisterIPN", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        url: ipnUrl,
-        ipn_notification_type: "POST",
-      }),
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "Authorization": `Bearer ${authToken}` },
+      body: JSON.stringify({ url: ipnUrl, ipn_notification_type: "POST" }),
     });
-
     const ipnResult = await ipnResponse.json();
-    console.log("IPN registration:", ipnResult);
-
     const notificationId = ipnResult.ipn_id;
 
-    // Step 3: Submit order
+    // Step 3: Submit order - use callbackPageUrl to redirect back to app
+    const redirectBackUrl = callbackPageUrl || `${supabaseUrl}/functions/v1/pesapal-callback`;
+    
     const orderResponse = await fetch("https://pay.pesapal.com/v3/api/Transactions/SubmitOrderRequest", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Bearer ${authToken}`,
-      },
+      headers: { "Content-Type": "application/json", "Accept": "application/json", "Authorization": `Bearer ${authToken}` },
       body: JSON.stringify({
         id: merchantReference,
         currency: "KES",
         amount: amount,
         description: `Daily contribution from ${userName}`,
-        callback_url: `${supabaseUrl}/functions/v1/pesapal-callback`,
+        callback_url: redirectBackUrl,
         notification_id: notificationId,
         billing_address: {
           phone_number: formattedPhone,
@@ -168,13 +110,13 @@ Deno.serve(async (req) => {
     });
 
     const orderResult = await orderResponse.json();
-    console.log("Order submission result:", orderResult);
+    console.log("Order result:", JSON.stringify(orderResult));
 
     if (!orderResponse.ok || orderResult.error) {
       throw new Error(`Pesapal order error: ${orderResult.error?.message || orderResponse.statusText}`);
     }
 
-    // Update payment record with tracking ID
+    // Update with tracking ID
     if (orderResult.order_tracking_id) {
       await supabase
         .from("payment_transactions")
@@ -182,30 +124,21 @@ Deno.serve(async (req) => {
         .eq("id", paymentRecord.id);
     }
 
-    const response: PaymentResponse = {
+    return new Response(JSON.stringify({
       success: true,
       reference: merchantReference,
       redirectUrl: orderResult.redirect_url || null,
-      message: orderResult.redirect_url 
-        ? "Payment page ready. Complete payment on the PesaPal page."
-        : "Payment initiated successfully.",
-    };
-
-    return new Response(JSON.stringify(response), {
+      message: "Payment initiated successfully.",
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
-    console.error("Error in initiate-pesapal-payment:", error);
-
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-
-    const response: PaymentResponse = {
+    console.error("Error:", error);
+    return new Response(JSON.stringify({
       success: false,
-      error: errorMessage,
-    };
-
-    return new Response(JSON.stringify(response), {
+      error: error instanceof Error ? error.message : "Unknown error",
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,
     });

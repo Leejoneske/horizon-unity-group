@@ -272,7 +272,8 @@ export default function MemberDetailPage() {
     );
   }
 
-  const effectiveBalance = member.total_contributions + (member.balance_adjustment || 0);
+  // Cycle-scoped balance: only contributions in this cycle
+  const effectiveBalance = member.total_contributions;
   const lastContribution = contributions.length > 0 ? contributions[0] : null;
   const lastLoginText = lastContribution 
     ? format(parseISO(lastContribution.contribution_date), 'MMM d, yyyy')
