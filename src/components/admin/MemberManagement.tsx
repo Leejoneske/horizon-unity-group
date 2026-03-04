@@ -210,7 +210,7 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
       ) : (
         <div className="space-y-3">
           {members.map((member) => {
-            const effectiveBalance = member.total_contributions + (member.balance_adjustment || 0);
+            const effectiveBalance = member.total_contributions;
             return (
               <div key={member.id} className="bg-gray-100 rounded-2xl p-4">
                 <div className="flex items-center gap-4">
