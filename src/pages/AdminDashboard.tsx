@@ -133,7 +133,8 @@ export default function AdminDashboard() {
     return date >= startOfMonth(currentMonth) && date <= endOfMonth(currentMonth);
   });
 
-  const totalGroupSavings = members.reduce((sum, m) => sum + m.total_contributions + (m.balance_adjustment || 0), 0);
+  // Cycle-scoped: only contributions matter, not old balance_adjustments
+  const totalGroupSavings = members.reduce((sum, m) => sum + m.total_contributions, 0);
   const thisMonthTotal = thisMonthContribs.reduce((sum, c) => sum + Number(c.amount), 0);
 
   if (authLoading || isLoading) {
@@ -336,7 +337,7 @@ export default function AdminDashboard() {
                           <p className="font-semibold text-gray-900">{member.full_name}</p>
                           <p className="text-sm text-gray-500">{member.contribution_count} contributions</p>
                         </div>
-                        <span className="font-bold text-gray-900">KES {(member.total_contributions + (member.balance_adjustment || 0)).toLocaleString()}</span>
+                        <span className="font-bold text-gray-900">KES {member.total_contributions.toLocaleString()}</span>
                       </div>
                     </div>
                   ))}

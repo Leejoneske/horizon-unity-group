@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { 
@@ -65,7 +65,10 @@ export default function UserDashboard() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
   const [activeCycle, setActiveCycle] = useState<ActiveCycle | null>(null);
+  const [paymentPolling, setPaymentPolling] = useState(false);
+  const [pendingReference, setPendingReference] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -79,6 +82,58 @@ export default function UserDashboard() {
       fetchData();
     }
   }, [user, isAdmin, authLoading, navigate]);
+
+  // Check for payment return from PesaPal
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref && user) {
+      setPendingReference(ref);
+      // Clean the URL
+      window.history.replaceState({}, '', '/dashboard');
+      startPaymentPolling(ref);
+    }
+  }, [searchParams, user]);
+
+  const startPaymentPolling = useCallback((reference: string) => {
+    setPaymentPolling(true);
+    toast({ title: '⏳ Checking payment...', description: 'Verifying your M-Pesa payment status.' });
+
+    let attempts = 0;
+    const maxAttempts = 30; // Poll for ~2.5 minutes
+    
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const { data } = await supabase
+          .from('payment_transactions')
+          .select('status')
+          .eq('merchant_reference', reference)
+          .single();
+        
+        if (data?.status === 'confirmed') {
+          clearInterval(poll);
+          setPaymentPolling(false);
+          setPendingReference(null);
+          toast({ title: '✅ Payment Confirmed!', description: 'Your contribution has been recorded.' });
+          fetchData();
+        } else if (data?.status === 'failed' || data?.status === 'cancelled') {
+          clearInterval(poll);
+          setPaymentPolling(false);
+          setPendingReference(null);
+          toast({ title: '❌ Payment Failed', description: 'The payment was not completed. Please try again.', variant: 'destructive' });
+        } else if (attempts >= maxAttempts) {
+          clearInterval(poll);
+          setPaymentPolling(false);
+          setPendingReference(null);
+          toast({ title: '⏱ Payment Pending', description: 'We\'re still waiting for confirmation. It may take a few minutes.' });
+        }
+      } catch {
+        // Keep polling
+      }
+    }, 5000);
+
+    return () => clearInterval(poll);
+  }, [toast]);
 
   const fetchData = async () => {
     try {
@@ -124,13 +179,12 @@ export default function UserDashboard() {
       
       let profileData = profileRes.data;
       
-      // If phone_number is missing from profile, extract from auth metadata and update
+      // If phone_number is missing from profile, extract from auth metadata
       if (profileData && !profileData.phone_number && user) {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const phoneFromAuth = authUser?.user_metadata?.phone_number;
 
         if (phoneFromAuth && phoneFromAuth.trim()) {
-          // Update profile with phone number from auth
           const { data: updated } = await supabase
             .from('profiles')
             .update({ phone_number: phoneFromAuth })
@@ -138,9 +192,7 @@ export default function UserDashboard() {
             .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
             .single();
 
-          if (updated) {
-            profileData = updated;
-          }
+          if (updated) profileData = updated;
         }
       }
       
@@ -158,8 +210,6 @@ export default function UserDashboard() {
     const today = startOfDay(new Date());
     const cycleStart = startOfDay(parseISO(activeCycle.start_date));
     const cycleEnd = startOfDay(parseISO(activeCycle.end_date));
-    const lastCountableDay = today <= cycleEnd ? today : cycleEnd;
-    // Count days from cycle start to yesterday (today isn't over yet)
     const yesterday = startOfDay(new Date(today.getTime() - 24 * 60 * 60 * 1000));
     const endDay = yesterday < cycleStart ? cycleStart : (yesterday <= cycleEnd ? yesterday : cycleEnd);
     const totalDays = Math.max(0, differenceInDays(endDay, cycleStart) + 1);
@@ -175,30 +225,18 @@ export default function UserDashboard() {
       toast({ title: 'No active cycle', description: 'Deposits are disabled until admin starts a new savings cycle.', variant: 'destructive' });
       return;
     }
-    try {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const existingToday = contributions.find(c => c.contribution_date === today);
-      
-      if (existingToday) {
-        toast({ title: 'Already contributed', description: 'You have already made a contribution today.', variant: 'destructive' });
-        return;
-      }
-
-      // Show payment confirmation
-      setShowPaymentConfirm(true);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to process request';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const existingToday = contributions.find(c => c.contribution_date === today);
+    if (existingToday) {
+      toast({ title: 'Already contributed', description: 'You have already made a contribution today.', variant: 'destructive' });
+      return;
     }
+    setShowPaymentConfirm(true);
   };
 
   const handleInitiatePayment = async () => {
     if (!profile?.phone_number) {
-      toast({ 
-        title: 'Error', 
-        description: 'Phone number not registered. Please update your profile.', 
-        variant: 'destructive' 
-      });
+      toast({ title: 'Error', description: 'Phone number not registered. Please update your profile.', variant: 'destructive' });
       setShowPaymentConfirm(false);
       return;
     }
@@ -207,19 +245,16 @@ export default function UserDashboard() {
 
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!supabaseUrl) {
-        throw new Error('Backend not configured');
-      }
+      if (!supabaseUrl) throw new Error('Backend not configured');
 
       const functionUrl = `${supabaseUrl}/functions/v1/initiate-pesapal-payment`;
       const dailyAmount = profile?.daily_contribution_amount || 100;
 
-      console.log('Calling Edge Function:', functionUrl);
+      // Build callback URL that returns user to dashboard with reference
+      const callbackPageUrl = `${window.location.origin}/dashboard?payment=pending`;
 
-      // Get current session token for auth
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Call the backend function
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
@@ -232,12 +267,11 @@ export default function UserDashboard() {
           amount: dailyAmount,
           phoneNumber: profile.phone_number,
           userName: profile.full_name || 'User',
+          callbackPageUrl,
         }),
       });
 
-      console.log('Response status:', response.status);
       const result = await response.json();
-      console.log('Response result:', result);
 
       if (!response.ok || !result.success) {
         throw new Error(result.error || `Failed with status ${response.status}`);
@@ -245,37 +279,47 @@ export default function UserDashboard() {
 
       setShowPaymentConfirm(false);
 
-      // If PesaPal returned a redirect URL, open it for the user to complete payment
-      if (result.redirectUrl) {
+      if (result.redirectUrl && result.reference) {
+        // Save reference for polling when user returns
+        localStorage.setItem('pending_payment_ref', result.reference);
+        
         toast({
-          title: '🔗 Complete Payment',
-          description: 'Opening PesaPal payment page. Complete payment there, then return here.',
+          title: '📱 Redirecting to payment...',
+          description: 'Complete the M-Pesa payment on the next page. You\'ll be brought back automatically.',
         });
-        // Open in new tab so user can return
-        window.open(result.redirectUrl, '_blank');
-      } else {
+
+        // Redirect in same window
+        setTimeout(() => {
+          window.location.href = result.redirectUrl;
+        }, 1500);
+      } else if (result.reference) {
+        // No redirect URL, start polling directly
+        setPendingReference(result.reference);
+        startPaymentPolling(result.reference);
         toast({
           title: '✅ Payment Initiated',
           description: 'Check your phone for the M-Pesa prompt. Enter your PIN to complete.',
         });
       }
-
-      // Refresh data after a delay
-      setTimeout(() => {
-        fetchData();
-      }, 5000);
-
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process payment';
-      toast({ 
-        title: '❌ Payment Error', 
-        description: message, 
-        variant: 'destructive' 
-      });
+      toast({ title: '❌ Payment Error', description: message, variant: 'destructive' });
     } finally {
       setPaymentLoading(false);
     }
   };
+
+  // Check for pending payment on mount (returning from PesaPal)
+  useEffect(() => {
+    const pendingRef = localStorage.getItem('pending_payment_ref');
+    const paymentParam = searchParams.get('payment');
+    
+    if (pendingRef && user) {
+      localStorage.removeItem('pending_payment_ref');
+      setPendingReference(pendingRef);
+      startPaymentPolling(pendingRef);
+    }
+  }, [user]);
 
   const handleAddContributionForDate = async (date: Date) => {
     if (!activeCycle) {
@@ -329,18 +373,15 @@ export default function UserDashboard() {
       navigate('/login', { replace: true });
     } catch (error) {
       console.error('Error signing out:', error);
-      // Force navigate even if signOut fails
       navigate('/login', { replace: true });
     }
   };
 
   const handleInvite = async () => {
     try {
-      // Get the app URL
       const appUrl = window.location.origin;
       const inviteLink = `${appUrl}/register?referral=${user?.id}`;
       
-      // Try to use native share if available
       if (navigator.share) {
         await navigator.share({
           title: 'Join Horizon Unit',
@@ -349,7 +390,6 @@ export default function UserDashboard() {
         });
         toast({ title: 'Shared!', description: 'Your referral link has been shared.' });
       } else {
-        // Fallback: Copy to clipboard
         await navigator.clipboard.writeText(inviteLink);
         toast({ title: 'Link copied!', description: 'Your referral link has been copied to clipboard.' });
       }
@@ -361,8 +401,9 @@ export default function UserDashboard() {
     }
   };
 
+  // Cycle-scoped balance: only contributions in this cycle, NO balance_adjustment (old cycle adjustments)
   const totalContributions = contributions.reduce((sum, c) => sum + Number(c.amount), 0);
-  const effectiveBalance = totalContributions + (profile?.balance_adjustment || 0);
+  const effectiveBalance = totalContributions;
   const thisMonthContributions = contributions.filter(c => {
     const date = parseISO(c.contribution_date);
     return date >= startOfMonth(currentMonth) && date <= endOfMonth(currentMonth);
@@ -388,12 +429,10 @@ export default function UserDashboard() {
 
   return (
     <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
-      {/* Mobile Container */}
       <div className="w-full h-full bg-white overflow-hidden flex flex-col">
         
         {/* Header */}
         <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">
-          {/* Profile Avatar */}
           <div className="relative">
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
               {profile?.full_name?.substring(0, 2).toUpperCase() || 'U'}
@@ -404,8 +443,6 @@ export default function UserDashboard() {
               </div>
             )}
           </div>
-
-          {/* Action Buttons */}
           <div className="flex items-center gap-2">
             <button 
               onClick={handleInvite}
@@ -423,8 +460,21 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Main Content - Scrollable */}
+        {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Payment Polling Banner */}
+          {paymentPolling && (
+            <div className="px-4 pt-4">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <div>
+                  <p className="font-semibold text-blue-900 text-sm">Verifying payment...</p>
+                  <p className="text-xs text-blue-700">Waiting for M-Pesa confirmation</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Balance Card */}
           <div className="px-4 pt-6 pb-4">
             <div className="bg-gray-100 rounded-3xl p-6">
@@ -445,7 +495,6 @@ export default function UserDashboard() {
                   <Wallet className="w-6 h-6 text-white" />
                 </div>
               </div>
-              {/* Cycle Status */}
               {activeCycle ? (
                 <div className="mt-3 flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -460,7 +509,7 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {/* Action Buttons Grid */}
+          {/* Action Buttons */}
           <div className="px-4 pb-6">
             <div className="grid grid-cols-2 gap-3">
               <button 
@@ -506,7 +555,7 @@ export default function UserDashboard() {
             </div>
           )}
 
-          {/* Messages Section */}
+          {/* Messages */}
           {unreadMessages.length > 0 && (
             <div className="px-4 pb-4">
               <h3 className="text-lg font-semibold text-gray-600 mb-4">Messages</h3>
@@ -536,17 +585,15 @@ export default function UserDashboard() {
             </div>
           )}
 
-          {/* Calendar Section */}
+          {/* Calendar */}
           <div className="px-4 pb-4">
             <h3 className="text-lg font-semibold text-gray-600 mb-4">{format(currentMonth, 'MMMM yyyy')}</h3>
-            
             <div className="bg-gray-100 rounded-3xl p-4">
               <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-500 mb-3">
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                   <div key={i} className="py-2">{day}</div>
                 ))}
               </div>
-              
               <div className="grid grid-cols-7 gap-1">
                 {Array.from({ length: startOfMonth(currentMonth).getDay() }).map((_, i) => (
                   <div key={`empty-${i}`} className="aspect-square" />
@@ -577,7 +624,7 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {/* Recent Activity - Show only 3 items, full history requires balance visibility */}
+          {/* Recent Activity */}
           <div className="px-4 pb-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-600">Recent</h3>
@@ -653,40 +700,38 @@ export default function UserDashboard() {
             )}
           </div>
 
-        {/* Bottom Navigation - Inside scrollable container */}
-        <div className="bg-white border-t border-gray-200">
-          <div className="px-4 py-3">
-            <p className="text-center text-sm text-gray-600 mb-3">
-              Daily target: <span className="font-semibold">KES {dailyAmount.toLocaleString()}</span>. 
-              Tap the button below to contribute.
-            </p>
-            
-            <div className="grid grid-cols-2 gap-3 pb-2">
-              <button 
-                onClick={() => {
-                  if (profile?.balance_visible) {
-                    setShowHistory(!showHistory);
-                  } else {
-                    toast({ title: 'History hidden', description: 'Full history is available when balance is visible.', variant: 'default' });
-                  }
-                }}
-                className={`py-4 px-6 rounded-full text-base font-semibold transition active:scale-95 ${
-                  profile?.balance_visible 
-                    ? 'bg-gray-100 text-gray-900 hover:bg-gray-200' 
-                    : 'bg-gray-50 text-gray-400'
-                }`}
-              >
-                History
-              </button>
-              <button 
-                onClick={handleAddContribution}
-                className="py-4 px-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full text-base font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30 active:scale-95"
-              >
-                Add
-              </button>
+          {/* Bottom Nav */}
+          <div className="bg-white border-t border-gray-200">
+            <div className="px-4 py-3">
+              <p className="text-center text-sm text-gray-600 mb-3">
+                Daily target: <span className="font-semibold">KES {dailyAmount.toLocaleString()}</span>
+              </p>
+              <div className="grid grid-cols-2 gap-3 pb-2">
+                <button 
+                  onClick={() => {
+                    if (profile?.balance_visible) {
+                      setShowHistory(!showHistory);
+                    } else {
+                      toast({ title: 'History hidden', description: 'Full history is available when balance is visible.', variant: 'default' });
+                    }
+                  }}
+                  className={`py-4 px-6 rounded-full text-base font-semibold transition active:scale-95 ${
+                    profile?.balance_visible 
+                      ? 'bg-gray-100 text-gray-900 hover:bg-gray-200' 
+                      : 'bg-gray-50 text-gray-400'
+                  }`}
+                >
+                  History
+                </button>
+                <button 
+                  onClick={handleAddContribution}
+                  className="py-4 px-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full text-base font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30 active:scale-95"
+                >
+                  Add
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
 
@@ -702,21 +747,18 @@ export default function UserDashboard() {
               <p className="text-gray-500 text-sm mt-1">via M-Pesa</p>
             </div>
 
-            {/* Phone Number */}
             <div className="bg-gray-100 rounded-2xl p-4 mb-4">
-              <p className="text-xs text-gray-600 font-semibold mb-1">TO (M-Pesa Number)</p>
-              <p className="text-2xl font-bold text-gray-900">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Loading...'}</p>
-              <p className="text-xs text-gray-500 mt-1">You will receive STK prompt on this number</p>
+              <p className="text-xs text-gray-600 font-semibold mb-1">M-PESA NUMBER</p>
+              <p className="text-2xl font-bold text-gray-900">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}</p>
+              <p className="text-xs text-gray-500 mt-1">You'll complete payment on the next page</p>
             </div>
 
-            {/* Amount */}
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 mb-6">
               <p className="text-xs text-green-700 font-semibold mb-1">AMOUNT</p>
               <p className="text-3xl font-bold text-green-600">KES {(profile?.daily_contribution_amount || 100).toLocaleString()}</p>
-              <p className="text-xs text-green-600 mt-1">You'll enter your PIN on your phone</p>
+              <p className="text-xs text-green-600 mt-1">Your daily contribution</p>
             </div>
 
-            {/* Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => setShowPaymentConfirm(false)}
