@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { sendBalanceAdjustmentSMS } from '@/lib/sms-reminders';
 import { Eye, EyeOff, Plus, Minus, Settings, X, Info } from 'lucide-react';
 
 interface Member {
@@ -115,6 +116,15 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
         title: 'Balance adjusted',
         description: `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}'s balance`,
       });
+
+      // Send SMS notification for balance adjustment
+      try {
+        if (selectedMember.phone_number) {
+          await sendBalanceAdjustmentSMS(selectedMember.phone_number, amount, adjustmentType, selectedMember.full_name);
+        }
+      } catch (smsErr) {
+        console.error('Balance adjustment SMS failed:', smsErr);
+      }
       
       setIsAdjustDialogOpen(false);
       setAdjustmentAmount('');

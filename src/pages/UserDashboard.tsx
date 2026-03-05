@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { sendContributionSuccessSMS } from '@/lib/sms-reminders';
 import { 
   Plus,
   Building2,
@@ -330,6 +331,16 @@ export default function UserDashboard() {
       if (error) throw error;
 
       toast({ title: 'Contribution added!', description: `KES ${dailyAmount.toLocaleString()} recorded for ${format(date, 'MMM d, yyyy')}.` });
+
+      // Send confirmation SMS
+      try {
+        if (profile?.phone_number) {
+          await sendContributionSuccessSMS(profile.phone_number, dailyAmount, profile.full_name);
+        }
+      } catch (smsErr) {
+        console.error('Contribution SMS failed:', smsErr);
+      }
+
       setSelectedDate(null);
       fetchData();
     } catch (error) {
