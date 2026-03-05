@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { TrendingDown, TrendingUp, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { sendBalanceAdjustmentSMS } from '@/lib/sms-reminders';
 import { Input } from '@/components/ui/input';
 
 interface PenaltiesRewardsProps {
-  member: { user_id: string; full_name: string; balance_adjustment: number };
+  member: { user_id: string; full_name: string; balance_adjustment: number; phone_number: string | null };
   adminId: string;
   onRefresh: () => void;
 }
@@ -50,6 +51,21 @@ export default function PenaltiesRewards({ member, adminId, onRefresh }: Penalti
       if (profileError) throw profileError;
 
       toast({ title: 'Success', description: `${type === 'penalty' ? 'Penalty' : 'Reward'} applied` });
+
+      // Send SMS notification
+      try {
+        if (member.phone_number) {
+          await sendBalanceAdjustmentSMS(
+            member.phone_number,
+            parsedAmount,
+            type === 'penalty' ? 'deduct' : 'add',
+            member.full_name
+          );
+        }
+      } catch (smsErr) {
+        console.error('Penalty/reward SMS failed:', smsErr);
+      }
+
       setAmount('');
       setReason('');
       onRefresh();

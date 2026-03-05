@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       })
       .eq("id", paymentRecord.id);
 
-    // If payment confirmed, register contribution
+    // If payment confirmed, register contribution and send SMS
     if (paymentStatus === "confirmed") {
       const today = new Date().toISOString().split("T")[0];
 
@@ -138,6 +138,28 @@ Deno.serve(async (req) => {
         .from("payment_transactions")
         .update({ contribution_date: today })
         .eq("id", paymentRecord.id);
+
+      // Send confirmation SMS
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, phone_number")
+          .eq("user_id", paymentRecord.user_id)
+          .single();
+
+        if (profile?.phone_number) {
+          const smsMessage = `Great job ${profile.full_name}! Your KES ${paymentRecord.amount.toLocaleString()} contribution has been recorded. Keep saving with Horizon Unit! 🎉`;
+          
+          await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to: profile.phone_number, message: smsMessage }),
+          });
+          console.log("Confirmation SMS sent to:", profile.phone_number);
+        }
+      } catch (smsErr) {
+        console.error("Confirmation SMS failed:", smsErr);
+      }
     }
 
     console.log(`Payment ${merchantReference} status updated to: ${paymentStatus}`);

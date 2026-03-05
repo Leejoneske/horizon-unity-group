@@ -160,7 +160,24 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
       const { error } = await supabase.from('admin_messages').insert(messagesToInsert);
       if (error) throw error;
 
-      toast({ title: 'Broadcast sent', description: `Message sent to ${members.length} members.` });
+      // Send SMS to all members with phone numbers
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('phone_number, full_name, user_id')
+          .in('user_id', members.map(m => m.user_id));
+
+        if (profiles) {
+          const smsPromises = profiles
+            .filter(p => p.phone_number)
+            .map(p => sendAdminNotificationSMS(p.phone_number!, newMessage, p.full_name));
+          await Promise.allSettled(smsPromises);
+        }
+      } catch (smsErr) {
+        console.error('Broadcast SMS failed (messages were still saved):', smsErr);
+      }
+
+      toast({ title: 'Broadcast sent', description: `Message sent to ${members.length} members (in-app + SMS).` });
       setIsDialogOpen(false);
       setNewMessage('');
       setMessageType('info');
