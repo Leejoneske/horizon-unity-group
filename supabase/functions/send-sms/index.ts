@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface SMSRequest {
@@ -11,18 +11,17 @@ interface SMSRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const TWILIO_PHONE_NUMBER = Deno.env.get('TWILIO_PHONE_NUMBER');
+    const AT_API_KEY = Deno.env.get('AT_API_KEY');
+    const AT_USERNAME = Deno.env.get('AT_USERNAME');
+    const AT_SENDER_ID = Deno.env.get('AT_SENDER_ID') || '';
 
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
-      throw new Error('Twilio credentials not configured');
+    if (!AT_API_KEY || !AT_USERNAME) {
+      throw new Error('Africa\'s Talking credentials not configured');
     }
 
     const { to, message }: SMSRequest = await req.json();
@@ -31,25 +30,27 @@ serve(async (req) => {
       throw new Error('Missing required fields: to and message');
     }
 
-    // Format phone number for Kenya (+254)
     const formattedPhone = formatPhoneNumber(to);
 
-    // Send SMS via Twilio API
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-    
-    const credentials = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+    // Africa's Talking SMS API
+    const atUrl = 'https://api.africastalking.com/version1/messaging';
     
     const body = new URLSearchParams({
-      To: formattedPhone,
-      From: TWILIO_PHONE_NUMBER,
-      Body: message,
+      username: AT_USERNAME,
+      to: formattedPhone,
+      message: message,
     });
 
-    const response = await fetch(twilioUrl, {
+    if (AT_SENDER_ID) {
+      body.append('from', AT_SENDER_ID);
+    }
+
+    const response = await fetch(atUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${credentials}`,
+        'apiKey': AT_API_KEY,
+        'Accept': 'application/json',
       },
       body: body.toString(),
     });
@@ -57,17 +58,23 @@ serve(async (req) => {
     const result = await response.json();
 
     if (!response.ok) {
-      console.error('Twilio API error:', result);
-      throw new Error(result.message || 'Failed to send SMS');
+      console.error('Africa\'s Talking API error:', result);
+      throw new Error(result.SMSMessageData?.Message || 'Failed to send SMS');
     }
 
-    console.log('SMS sent successfully:', result.sid);
+    const recipients = result.SMSMessageData?.Recipients || [];
+    const firstRecipient = recipients[0];
+    const messageId = firstRecipient?.messageId || 'unknown';
+    const status = firstRecipient?.status || 'Unknown';
+
+    console.log('SMS sent via Africa\'s Talking:', messageId, 'Status:', status);
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        message_sid: result.sid,
-        status: result.status 
+        success: status === 'Success',
+        message_sid: messageId,
+        status: status,
+        cost: firstRecipient?.cost || '0',
       }),
       { 
         status: 200, 
@@ -90,7 +97,6 @@ serve(async (req) => {
 function formatPhoneNumber(phoneNumber: string): string {
   const cleaned = phoneNumber.replace(/\D/g, '');
   
-  // Handle Kenyan numbers
   if (cleaned.startsWith('254')) {
     return '+' + cleaned;
   } else if (cleaned.startsWith('0') && cleaned.length === 10) {
@@ -99,6 +105,5 @@ function formatPhoneNumber(phoneNumber: string): string {
     return '+254' + cleaned;
   }
   
-  // Return as-is with + prefix if already formatted
   return cleaned.startsWith('+') ? cleaned : '+' + cleaned;
 }

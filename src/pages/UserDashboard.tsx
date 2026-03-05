@@ -67,6 +67,7 @@ export default function UserDashboard() {
   const [activeCycle, setActiveCycle] = useState<ActiveCycle | null>(null);
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [pendingReference, setPendingReference] = useState<string | null>(null);
+  const [pesapalIframeUrl, setPesapalIframeUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -83,16 +84,7 @@ export default function UserDashboard() {
     }
   }, [user, isAdmin, authLoading, navigate]);
 
-  // Check for payment return from PesaPal
-  useEffect(() => {
-    const ref = searchParams.get('ref');
-    if (ref && user) {
-      setPendingReference(ref);
-      // Clean the URL
-      window.history.replaceState({}, '', '/dashboard');
-      startPaymentPolling(ref);
-    }
-  }, [searchParams, user]);
+  // No longer needed - payment stays in-app via iframe
 
   const startPaymentPolling = useCallback((reference: string) => {
     setPaymentPolling(true);
@@ -114,12 +106,14 @@ export default function UserDashboard() {
           clearInterval(poll);
           setPaymentPolling(false);
           setPendingReference(null);
+          setPesapalIframeUrl(null);
           toast({ title: '✅ Payment Confirmed!', description: 'Your contribution has been recorded.' });
           fetchData();
         } else if (data?.status === 'failed' || data?.status === 'cancelled') {
           clearInterval(poll);
           setPaymentPolling(false);
           setPendingReference(null);
+          setPesapalIframeUrl(null);
           toast({ title: '❌ Payment Failed', description: 'The payment was not completed. Please try again.', variant: 'destructive' });
         } else if (attempts >= maxAttempts) {
           clearInterval(poll);
@@ -279,27 +273,23 @@ export default function UserDashboard() {
 
       setShowPaymentConfirm(false);
 
-      if (result.redirectUrl && result.reference) {
-        // Save reference for polling when user returns
-        localStorage.setItem('pending_payment_ref', result.reference);
-        
-        toast({
-          title: '📱 Redirecting to payment...',
-          description: 'Complete the M-Pesa payment on the next page. You\'ll be brought back automatically.',
-        });
-
-        // Redirect in same window
-        setTimeout(() => {
-          window.location.href = result.redirectUrl;
-        }, 1500);
-      } else if (result.reference) {
-        // No redirect URL, start polling directly
+      if (result.reference) {
         setPendingReference(result.reference);
         startPaymentPolling(result.reference);
-        toast({
-          title: '✅ Payment Initiated',
-          description: 'Check your phone for the M-Pesa prompt. Enter your PIN to complete.',
-        });
+        
+        if (result.redirectUrl) {
+          // Show PesaPal payment page in iframe modal
+          setPesapalIframeUrl(result.redirectUrl);
+          toast({
+            title: '📱 Complete Payment',
+            description: 'Select M-Pesa in the payment window and enter your PIN when prompted.',
+          });
+        } else {
+          toast({
+            title: '✅ Payment Initiated',
+            description: 'Check your phone for the M-Pesa prompt.',
+          });
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process payment';
@@ -309,17 +299,7 @@ export default function UserDashboard() {
     }
   };
 
-  // Check for pending payment on mount (returning from PesaPal)
-  useEffect(() => {
-    const pendingRef = localStorage.getItem('pending_payment_ref');
-    const paymentParam = searchParams.get('payment');
-    
-    if (pendingRef && user) {
-      localStorage.removeItem('pending_payment_ref');
-      setPendingReference(pendingRef);
-      startPaymentPolling(pendingRef);
-    }
-  }, [user]);
+  // No longer needed - payment stays in-app via iframe
 
   const handleAddContributionForDate = async (date: Date) => {
     if (!activeCycle) {
@@ -735,6 +715,42 @@ export default function UserDashboard() {
         </div>
       </div>
 
+      {/* PesaPal Payment Iframe Modal */}
+      {pesapalIframeUrl && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex flex-col items-center justify-center p-2">
+          <div className="bg-white rounded-3xl w-full max-w-md h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="font-bold text-lg text-gray-900">Complete Payment</h3>
+                <p className="text-xs text-gray-500">Select M-Pesa and enter your PIN</p>
+              </div>
+              <button
+                onClick={() => {
+                  setPesapalIframeUrl(null);
+                }}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            <div className="flex-1 relative">
+              {paymentPolling && (
+                <div className="absolute top-0 left-0 right-0 bg-blue-50 px-4 py-2 flex items-center gap-2 z-10">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-blue-700 font-medium">Waiting for confirmation...</p>
+                </div>
+              )}
+              <iframe
+                src={pesapalIframeUrl}
+                className="w-full h-full border-0"
+                title="PesaPal Payment"
+                allow="payment"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Confirmation Dialog */}
       {showPaymentConfirm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
@@ -750,7 +766,7 @@ export default function UserDashboard() {
             <div className="bg-gray-100 rounded-2xl p-4 mb-4">
               <p className="text-xs text-gray-600 font-semibold mb-1">M-PESA NUMBER</p>
               <p className="text-2xl font-bold text-gray-900">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}</p>
-              <p className="text-xs text-gray-500 mt-1">You'll complete payment on the next page</p>
+              <p className="text-xs text-gray-500 mt-1">Payment will open in-app</p>
             </div>
 
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 mb-6">
