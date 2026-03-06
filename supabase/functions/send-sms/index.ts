@@ -20,6 +20,10 @@ serve(async (req) => {
     const AT_USERNAME = Deno.env.get('AT_USERNAME');
     const AT_SENDER_ID = Deno.env.get('AT_SENDER_ID') || '';
 
+    console.log('AT_USERNAME:', AT_USERNAME);
+    console.log('AT_API_KEY length:', AT_API_KEY?.length || 0);
+    console.log('AT_API_KEY first 8 chars:', AT_API_KEY?.substring(0, 8));
+
     if (!AT_API_KEY || !AT_USERNAME) {
       throw new Error('Africa\'s Talking credentials not configured');
     }
