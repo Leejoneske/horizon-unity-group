@@ -55,7 +55,16 @@ serve(async (req) => {
       body: body.toString(),
     });
 
-    const result = await response.json();
+    const responseText = await response.text();
+    console.log('Africa\'s Talking raw response:', responseText);
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      console.error('Non-JSON response from Africa\'s Talking:', responseText);
+      throw new Error(`Africa's Talking API error: ${responseText}`);
+    }
 
     if (!response.ok) {
       console.error('Africa\'s Talking API error:', result);
