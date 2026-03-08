@@ -901,10 +901,6 @@ export default function UserDashboard() {
     </div>
   );
 }
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-xl text-gray-900">Account Details</h3>
               <button
                 onClick={() => setShowAccountDetails(false)}
                 className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
