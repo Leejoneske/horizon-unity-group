@@ -163,6 +163,9 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
 
       if (error) throw error;
 
+      await logAdminAction(adminId, 'change_contribution_target', 'contribution', selectedMember.user_id,
+        `Changed ${selectedMember.full_name}'s daily target to KES ${amount.toLocaleString()}`);
+
       toast({
         title: 'Contribution amount updated',
         description: `${selectedMember.full_name}'s daily contribution is now KES ${amount.toLocaleString()}`,
