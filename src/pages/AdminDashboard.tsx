@@ -366,7 +366,7 @@ export default function AdminDashboard() {
             />
           )}
 
-
+import ActivityLog from '@/components/admin/ActivityLog';
           {activeTab === 'announcements' && (
             <AnnouncementsManager 
               adminId={user!.id}
