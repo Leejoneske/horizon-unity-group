@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { hasSupabaseCredentials } from '@/integrations/supabase/client';
 import { sendContributionSuccessSMS } from '@/lib/sms-reminders';
 import { 
   Plus,
