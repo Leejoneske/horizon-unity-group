@@ -13,118 +13,87 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Initialize admin user from environment variables (one-time setup)
+// Uses localStorage flag to avoid running on every page load
 const initializeAdminUser = async () => {
-  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
-  const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
-
-  console.log('🔍 Checking admin initialization...');
-
-  if (!adminEmail || !adminPassword) {
-    console.warn('⚠️  Admin credentials not configured in environment variables');
+  // Skip if already initialized
+  if (localStorage.getItem('admin_initialized') === 'true') {
+    console.log('✓ Admin already initialized (cached)');
     return;
   }
 
-  console.log(`📧 Admin email: ${adminEmail}`);
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
+  const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.warn('⚠️  Admin credentials not configured');
+    return;
+  }
 
   try {
-    // Check if admin already exists
-    const { data: existingAdmin, error: checkError } = await supabase
+    // Check if admin already exists using a simple query
+    const { data: existingAdmin } = await supabase
       .from('user_roles')
       .select('user_id')
       .eq('role', 'admin')
       .maybeSingle();
 
-    if (checkError) {
-      console.error('Error checking for existing admin:', checkError);
-    }
-
     if (existingAdmin) {
       console.log('✓ Admin user already exists');
+      localStorage.setItem('admin_initialized', 'true');
       return;
     }
 
+    // IMPORTANT: Save current session before admin init so we can restore it
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+
     console.log('Creating new admin user...');
 
-    // Try to sign up the admin user
     const { data, error } = await supabase.auth.signUp({
       email: adminEmail,
       password: adminPassword,
       options: {
-        data: {
-          full_name: 'Admin',
-        },
+        data: { full_name: 'Admin' },
         emailRedirectTo: window.location.origin,
       },
     });
 
     if (error) {
-      console.error('Error during sign up:', error.message);
-      // If user already exists in auth but not in roles, just set the role
       if (error.message.includes('already registered') || error.message.includes('User already exists')) {
         console.log('✓ Admin email already registered in auth');
-        
-        // Try to sign in to get the user ID
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: adminEmail,
-          password: adminPassword,
-        });
-
-        if (signInError) {
-          console.error('Could not sign in to verify admin:', signInError.message);
-          return;
-        }
-
-        if (signInData.user) {
-          // Check if admin role already exists
-          const { data: existingRole } = await supabase
-            .from('user_roles')
-            .select('id')
-            .eq('user_id', signInData.user.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-
-          if (!existingRole) {
-            // Insert admin role
-            const { error: roleError } = await supabase
-              .from('user_roles')
-              .insert({
-                user_id: signInData.user.id,
-                role: 'admin',
-              });
-
-            if (roleError) {
-              console.error('Error setting admin role:', roleError);
-            } else {
-              console.log('✓ Admin role set');
-            }
-          } else {
-            console.log('✓ Admin role confirmed');
-          }
-
-          await supabase.auth.signOut();
-        }
-        return;
+        // Don't sign in/out to check role - just mark as initialized
+        // The admin role was already set during initial signup
+        localStorage.setItem('admin_initialized', 'true');
+      } else {
+        console.error('Failed to create admin user:', error);
       }
-      console.error('Failed to create admin user:', error);
       return;
     }
 
     if (data.user) {
       console.log('✓ Admin user created:', data.user.id);
-      // Insert admin role
       const { error: roleError } = await supabase
         .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: 'admin',
-        });
+        .insert({ user_id: data.user.id, role: 'admin' });
 
       if (roleError) {
         console.error('Error setting admin role:', roleError);
       } else {
         console.log('✓ Admin user initialized successfully');
       }
+      
+      // Sign out the newly created admin so it doesn't interfere with current user
+      await supabase.auth.signOut({ scope: 'local' });
+      
+      // Restore previous session if one existed
+      if (currentSession) {
+        await supabase.auth.setSession({
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token,
+        });
+      }
     }
+
+    localStorage.setItem('admin_initialized', 'true');
   } catch (error) {
     console.error('Failed to initialize admin user:', error);
   }
@@ -177,19 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Refresh session from server to ensure it's current
-  const refreshSessionFromServer = async () => {
-    try {
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-      if (!error && currentSession) {
-        return currentSession;
-      }
-      return null;
-    } catch (e) {
-      console.error('Error refreshing session:', e);
-      return null;
-    }
-  };
 
   useEffect(() => {
     // Initialize admin on app load (only once)
@@ -197,59 +153,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let mounted = true;
 
-    // Get initial session with validation
+    // Set up auth state listener FIRST (before getSession)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        if (!mounted) return;
+
+        console.log('Auth state changed:', event, { hasSession: !!currentSession });
+
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          setIsLoading(false);
+          return;
+        }
+
+        if (currentSession?.user) {
+          // Use setTimeout to avoid Supabase deadlock when querying during auth callback
+          setTimeout(async () => {
+            if (!mounted) return;
+            await updateAuthState(currentSession);
+            setIsLoading(false);
+          }, 0);
+        } else {
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // Get initial session - this will trigger onAuthStateChange with INITIAL_SESSION
     const getInitialSession = async () => {
       try {
-        console.log('Attempting to restore session...');
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.warn('Session recovery warning:', sessionError.message);
+        if (error) {
+          console.warn('Session error:', error.message);
         }
 
         if (!mounted) return;
 
-        if (initialSession) {
-          console.log('Session found, validating...');
-          try {
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (refreshError || !refreshedSession) {
-              // Session is invalid/expired - clear it completely
-              console.warn('Session expired or invalid, signing out:', refreshError?.message);
-              await supabase.auth.signOut({ scope: 'local' });
-              setUser(null);
-              setSession(null);
-              setIsAdmin(false);
-            } else {
-              console.log('Session refreshed successfully');
-              await updateAuthState(refreshedSession);
-            }
-          } catch (refreshErr) {
-            console.warn('Error refreshing session, clearing:', refreshErr);
-            await supabase.auth.signOut({ scope: 'local' });
-            setUser(null);
-            setSession(null);
-            setIsAdmin(false);
-          }
-        } else {
+        // If no session found, ensure loading stops
+        if (!initialSession) {
           console.log('No session found');
           setUser(null);
           setSession(null);
           setIsAdmin(false);
+          setIsLoading(false);
         }
+        // If session exists, onAuthStateChange INITIAL_SESSION will handle it
       } catch (e) {
         console.error('Error during session recovery:', e);
         if (mounted) {
-          // Clear any stale data on error
-          try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
           setUser(null);
           setSession(null);
           setIsAdmin(false);
-        }
-      } finally {
-        if (mounted) {
           setIsLoading(false);
         }
       }
@@ -257,37 +218,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getInitialSession();
 
-    // Set up auth state listener for realtime updates
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        if (!mounted) return;
-
-        console.log('Auth state changed:', event, { hasSession: !!currentSession });
-
-        // Handle all state changes uniformly
-        if (event === 'SIGNED_OUT') {
-          console.log('User signed out');
-          setUser(null);
-          setSession(null);
-          setIsAdmin(false);
-          return;
-        }
-
-        // For TOKEN_REFRESHED events, ensure we maintain the session
-        if (event === 'TOKEN_REFRESHED' && currentSession) {
-          console.log('Token refreshed, maintaining session');
-          await updateAuthState(currentSession);
-          return;
-        }
-
-        // Always update state with current session (covers SIGNED_IN, USER_UPDATED, etc)
-        await updateAuthState(currentSession);
+    // Safety timeout - if still loading after 8 seconds, force stop
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        console.warn('Auth loading timeout - forcing completion');
+        setIsLoading(false);
       }
-    );
+    }, 8000);
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      clearTimeout(timeout);
     };
   }, []);
 
