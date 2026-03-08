@@ -159,26 +159,33 @@ function SimpleLandingPage() {
         </div>
       </section>
 
-      {/* Trust Section */}
+      {/* Trust Section - HUG */}
       <section id="trust" className="bg-blue-50 py-16 px-4">
-        <div className="max-w-6xl mx-auto text-center">
-          <Heart className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Trusted by Community Groups Everywhere</h2>
-          <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto">
-            Horizon Unit is built for the values your group shares: transparency, trust, and collective progress. No hidden fees, no surprise penalties, just honest saving together.
-          </p>
-          
-          <div className="grid md:grid-cols-3 gap-6 mt-10">
-            {[
-              { icon: CheckCircle, label: "No Hidden Fees" },
-              { icon: Lock, label: "Data Encrypted" },
-              { icon: Zap, label: "Instant Updates" }
-            ].map((item, i) => (
-              <div key={i} className="flex items-center justify-center gap-2">
-                <item.icon className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-gray-900">{item.label}</span>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            <div className="text-center md:text-left">
+              <Heart className="w-10 h-10 text-blue-600 mb-4 mx-auto md:mx-0" />
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Everyone Deserves a <span className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">HUG</span></h2>
+              <p className="text-lg font-semibold text-gray-700 mb-4">Horizon Unit Group</p>
+              <p className="text-gray-600 text-lg leading-relaxed mb-6">
+                At Horizon, we believe that saving is more than just numbers — it's about holding each other up. That's why we call our community a <strong>HUG</strong>. Because when people come together with trust, transparency, and a shared goal, great things happen.
+              </p>
+              <div className="flex flex-wrap gap-6 justify-center md:justify-start">
+                {[
+                  { icon: CheckCircle, label: "No Hidden Fees" },
+                  { icon: Lock, label: "Data Encrypted" },
+                  { icon: Zap, label: "Instant Updates" }
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <item.icon className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold text-gray-900">{item.label}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <div className="flex justify-center">
+              <img src={hugIllustration} alt="Community group hug illustration" className="w-72 h-72 object-contain drop-shadow-lg" />
+            </div>
           </div>
         </div>
       </section>
