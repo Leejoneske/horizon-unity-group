@@ -18,6 +18,7 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import TipsCard from '@/components/TipsCard';
+import NotificationCenter from '@/components/NotificationCenter';
 
 interface Contribution {
   id: string;
