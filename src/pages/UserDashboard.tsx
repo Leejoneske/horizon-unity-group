@@ -57,7 +57,7 @@ interface ActiveCycle {
 }
 
 export default function UserDashboard() {
-  const { user, signOut, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, signOut, isAdmin, isLoading: authLoading, sessionExpired, clearSessionExpired } = useAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [messages, setMessages] = useState<AdminMessage[]>([]);
