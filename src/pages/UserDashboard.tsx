@@ -70,6 +70,7 @@ export default function UserDashboard() {
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [pendingReference, setPendingReference] = useState<string | null>(null);
   const [pesapalIframeUrl, setPesapalIframeUrl] = useState<string | null>(null);
+  const [showAccountDetails, setShowAccountDetails] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -510,7 +511,10 @@ export default function UserDashboard() {
                 <span className="text-base font-semibold text-gray-900">Add money</span>
               </button>
               
-              <button className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95">
+              <button 
+                onClick={() => setShowAccountDetails(true)}
+                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
+              >
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
                   <Building2 className="w-6 h-6 text-gray-900" />
                 </div>
@@ -806,6 +810,178 @@ export default function UserDashboard() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Details Panel */}
+      {showAccountDetails && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-xl text-gray-900">Account Details</h3>
+              <button
+                onClick={() => setShowAccountDetails(false)}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold text-2xl">
+                {profile?.full_name?.substring(0, 2).toUpperCase() || 'U'}
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{profile?.full_name || 'Member'}</p>
+                <p className="text-sm text-gray-500">{user?.email}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="bg-gray-100 rounded-2xl p-4">
+                <p className="text-xs text-gray-500 font-semibold mb-1">PHONE NUMBER</p>
+                <p className="text-base font-bold text-gray-900">
+                  {profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}
+                </p>
+              </div>
+
+              <div className="bg-gray-100 rounded-2xl p-4">
+                <p className="text-xs text-gray-500 font-semibold mb-1">DAILY TARGET</p>
+                <p className="text-base font-bold text-gray-900">KES {dailyAmount.toLocaleString()}</p>
+              </div>
+
+              {profile?.balance_visible && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
+                  <p className="text-xs text-green-700 font-semibold mb-1">TOTAL SAVINGS (THIS CYCLE)</p>
+                  <p className="text-2xl font-bold text-green-600">KES {effectiveBalance.toLocaleString()}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-100 rounded-2xl p-4">
+                  <p className="text-xs text-gray-500 font-semibold mb-1">CONTRIBUTIONS</p>
+                  <p className="text-xl font-bold text-gray-900">{contributions.length}</p>
+                  <p className="text-xs text-gray-500">days paid</p>
+                </div>
+                <div className="bg-gray-100 rounded-2xl p-4">
+                  <p className="text-xs text-gray-500 font-semibold mb-1">MISSED DAYS</p>
+                  <p className="text-xl font-bold text-gray-900">{missedDays}</p>
+                  <p className="text-xs text-gray-500">this cycle</p>
+                </div>
+              </div>
+
+              {activeCycle && (
+                <div className="bg-gray-100 rounded-2xl p-4">
+                  <p className="text-xs text-gray-500 font-semibold mb-1">ACTIVE CYCLE</p>
+                  <p className="text-base font-bold text-gray-900">{activeCycle.cycle_name}</p>
+                  <p className="text-sm text-gray-500">
+                    {format(parseISO(activeCycle.start_date), 'MMM d')} — {format(parseISO(activeCycle.end_date), 'MMM d, yyyy')}
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-gray-100 rounded-2xl p-4">
+                <p className="text-xs text-gray-500 font-semibold mb-1">MEMBER SINCE</p>
+                <p className="text-base font-bold text-gray-900">
+                  {user?.created_at ? format(parseISO(user.created_at), 'MMMM d, yyyy') : '—'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowAccountDetails(false)}
+              className="w-full mt-6 py-4 bg-gray-100 rounded-full font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-xl text-gray-900">Account Details</h3>
+              <button
+                onClick={() => setShowAccountDetails(false)}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Avatar & Name */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold text-2xl">
+                {profile?.full_name?.substring(0, 2).toUpperCase() || 'U'}
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{profile?.full_name || 'Member'}</p>
+                <p className="text-sm text-gray-500">{user?.email}</p>
+              </div>
+            </div>
+
+            {/* Info Rows */}
+            <div className="space-y-3">
+              <div className="bg-gray-100 rounded-2xl p-4">
+                <p className="text-xs text-gray-500 font-semibold mb-1">PHONE NUMBER</p>
+                <p className="text-base font-bold text-gray-900">
+                  {profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}
+                </p>
+              </div>
+
+              <div className="bg-gray-100 rounded-2xl p-4">
+                <p className="text-xs text-gray-500 font-semibold mb-1">DAILY TARGET</p>
+                <p className="text-base font-bold text-gray-900">KES {dailyAmount.toLocaleString()}</p>
+              </div>
+
+              {profile?.balance_visible && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
+                  <p className="text-xs text-green-700 font-semibold mb-1">TOTAL SAVINGS (THIS CYCLE)</p>
+                  <p className="text-2xl font-bold text-green-600">KES {effectiveBalance.toLocaleString()}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-100 rounded-2xl p-4">
+                  <p className="text-xs text-gray-500 font-semibold mb-1">CONTRIBUTIONS</p>
+                  <p className="text-xl font-bold text-gray-900">{contributions.length}</p>
+                  <p className="text-xs text-gray-500">days paid</p>
+                </div>
+                <div className="bg-gray-100 rounded-2xl p-4">
+                  <p className="text-xs text-gray-500 font-semibold mb-1">MISSED DAYS</p>
+                  <p className="text-xl font-bold text-gray-900">{missedDays}</p>
+                  <p className="text-xs text-gray-500">this cycle</p>
+                </div>
+              </div>
+
+              {activeCycle && (
+                <div className="bg-gray-100 rounded-2xl p-4">
+                  <p className="text-xs text-gray-500 font-semibold mb-1">ACTIVE CYCLE</p>
+                  <p className="text-base font-bold text-gray-900">{activeCycle.cycle_name}</p>
+                  <p className="text-sm text-gray-500">
+                    {format(parseISO(activeCycle.start_date), 'MMM d')} — {format(parseISO(activeCycle.end_date), 'MMM d, yyyy')}
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-gray-100 rounded-2xl p-4">
+                <p className="text-xs text-gray-500 font-semibold mb-1">MEMBER SINCE</p>
+                <p className="text-base font-bold text-gray-900">
+                  {user?.created_at ? format(parseISO(user.created_at), 'MMMM d, yyyy') : '—'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowAccountDetails(false)}
+              className="w-full mt-6 py-4 bg-gray-100 rounded-full font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
