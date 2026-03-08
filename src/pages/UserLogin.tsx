@@ -87,6 +87,9 @@ export default function UserLogin() {
         email = formatPhoneEmail(credential);
       }
 
+      // Store remember-me preference before signing in
+      localStorage.setItem('remember_me', rememberMe ? 'true' : 'false');
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
