@@ -12,7 +12,7 @@ import {
   Search,
   X,
   BarChart3,
-  LogIn,
+  
   Edit3,
   AlertCircle,
   SendHorizontal,
@@ -24,7 +24,7 @@ import MemberManagement from '@/components/admin/MemberManagement';
 import MessageCenter from '@/components/admin/MessageCenter';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
 import MemberSearchFilter from '@/components/admin/MemberSearchFilter';
-import AuditLogViewer from '@/components/admin/AuditLogViewer';
+
 import AnnouncementsManager from '@/components/admin/AnnouncementsManager';
 import AdminSettings from '@/components/admin/AdminSettings';
 import CycleManagement from '@/components/admin/CycleManagement';
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [recentContributions, setRecentContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'audit' | 'announcements' | 'settings' | 'cycles'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'announcements' | 'settings' | 'cycles'>('overview');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -239,16 +239,6 @@ export default function AdminDashboard() {
               </button>
 
               <button 
-                onClick={() => setActiveTab('audit')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'audit' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <LogIn className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Audit Log</span>
-              </button>
-
-              <button 
                 onClick={() => setActiveTab('announcements')}
                 className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
                   activeTab === 'announcements' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -375,9 +365,6 @@ export default function AdminDashboard() {
             />
           )}
 
-          {activeTab === 'audit' && (
-            <AuditLogViewer logs={[]} />
-          )}
 
           {activeTab === 'announcements' && (
             <AnnouncementsManager 
