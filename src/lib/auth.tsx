@@ -202,7 +202,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('Attempting to restore session...');
         
-        // First try to get the current session
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -211,27 +210,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!mounted) return;
 
-        // If we have a session, try to refresh it to ensure it's valid
         if (initialSession) {
           console.log('Session found, validating...');
           try {
-            // Try to refresh the session to ensure token is valid
             const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
             
-            if (refreshError) {
-              console.warn('Session refresh failed, using cached session:', refreshError.message);
-              // Use the original session even if refresh failed
-              await updateAuthState(initialSession);
-            } else if (refreshedSession) {
+            if (refreshError || !refreshedSession) {
+              // Session is invalid/expired - clear it completely
+              console.warn('Session expired or invalid, signing out:', refreshError?.message);
+              await supabase.auth.signOut({ scope: 'local' });
+              setUser(null);
+              setSession(null);
+              setIsAdmin(false);
+            } else {
               console.log('Session refreshed successfully');
               await updateAuthState(refreshedSession);
-            } else {
-              await updateAuthState(initialSession);
             }
           } catch (refreshErr) {
-            console.warn('Error refreshing session, using cached:', refreshErr);
-            // Fall back to original session
-            await updateAuthState(initialSession);
+            console.warn('Error refreshing session, clearing:', refreshErr);
+            await supabase.auth.signOut({ scope: 'local' });
+            setUser(null);
+            setSession(null);
+            setIsAdmin(false);
           }
         } else {
           console.log('No session found');
@@ -242,6 +242,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error('Error during session recovery:', e);
         if (mounted) {
+          // Clear any stale data on error
+          try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
           setUser(null);
           setSession(null);
           setIsAdmin(false);
