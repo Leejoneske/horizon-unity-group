@@ -251,6 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      isExplicitSignOut.current = true;
       setIsLoading(true);
       // Update last_login timestamp before signing out
       if (user) {
