@@ -272,6 +272,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       isExplicitSignOut.current = true;
       setIsLoading(true);
+      // Clear remember-me on explicit sign out
+      localStorage.removeItem('remember_me');
+      sessionStorage.removeItem('session_active');
       // Update last_login timestamp before signing out
       if (user) {
         try {
