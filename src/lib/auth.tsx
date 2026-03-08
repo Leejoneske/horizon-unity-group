@@ -109,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const clearSessionExpired = () => setSessionExpired(false);
+  const isExplicitSignOut = useRef(false);
 
   const fetchIsAdmin = async (userId: string) => {
     try {
