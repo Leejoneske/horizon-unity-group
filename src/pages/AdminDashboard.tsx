@@ -239,16 +239,6 @@ export default function AdminDashboard() {
               </button>
 
               <button 
-                onClick={() => setActiveTab('audit')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'audit' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <LogIn className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Audit Log</span>
-              </button>
-
-              <button 
                 onClick={() => setActiveTab('announcements')}
                 className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
                   activeTab === 'announcements' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
