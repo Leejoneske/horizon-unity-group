@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { hasSupabaseCredentials } from '@/integrations/supabase/client';
 import { sendContributionSuccessSMS } from '@/lib/sms-reminders';
 import { 
   Plus,
@@ -56,7 +57,7 @@ interface ActiveCycle {
 }
 
 export default function UserDashboard() {
-  const { user, signOut, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, signOut, isAdmin, isLoading: authLoading, sessionExpired, clearSessionExpired } = useAuth();
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [messages, setMessages] = useState<AdminMessage[]>([]);
@@ -76,6 +77,15 @@ export default function UserDashboard() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
+  // Redirect on session expiry
+  useEffect(() => {
+    if (sessionExpired) {
+      clearSessionExpired();
+      toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
+      navigate('/login', { replace: true });
+    }
+  }, [sessionExpired]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/login');
@@ -87,6 +97,24 @@ export default function UserDashboard() {
       fetchData();
     }
   }, [user, isAdmin, authLoading, navigate]);
+
+  // Periodic session validity check — detect stale sessions before they cause empty UI
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.warn('Session lost during interval check');
+          toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
+          navigate('/login', { replace: true });
+        }
+      } catch {
+        // ignore network errors
+      }
+    }, 60000); // Check every 60 seconds
+    return () => clearInterval(interval);
+  }, [user, navigate, toast]);
 
   // No longer needed - payment stays in-app via iframe
 
@@ -154,6 +182,18 @@ export default function UserDashboard() {
           .limit(1)
           .single()
       ]);
+
+      // Check if profile fetch failed due to auth — means session is stale
+      if (profileRes.error) {
+        const code = (profileRes.error as any)?.code;
+        const msg = profileRes.error.message?.toLowerCase() || '';
+        if (code === 'PGRST301' || msg.includes('jwt') || msg.includes('unauthorized') || msg.includes('expired')) {
+          console.warn('Session expired during data fetch');
+          toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
+          navigate('/login', { replace: true });
+          return;
+        }
+      }
 
       const activeCycleData = cycleRes.data as ActiveCycle | null;
       if (activeCycleData) setActiveCycle(activeCycleData);
