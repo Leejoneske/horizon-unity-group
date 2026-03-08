@@ -116,6 +116,9 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
 
       if (profileError) throw profileError;
 
+      await logAdminAction(adminId, `balance_${adjustmentType}`, 'balance', selectedMember.user_id,
+        `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}${adjustmentReason ? ` — ${adjustmentReason}` : ''}`);
+
       toast({
         title: 'Balance adjusted',
         description: `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}'s balance`,
