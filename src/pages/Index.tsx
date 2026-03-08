@@ -159,7 +159,7 @@ function SimpleLandingPage() {
       </section>
 
       {/* Trust Section */}
-      <section className="bg-blue-50 py-16 px-4">
+      <section id="trust" className="bg-blue-50 py-16 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <Heart className="w-12 h-12 text-blue-600 mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Trusted by Community Groups Everywhere</h2>
