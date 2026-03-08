@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logAdminAction } from '@/lib/audit-log';
 import { CalendarRange, Plus, History, CheckCircle2, Clock, AlertCircle, X, Users, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO, differenceInDays, isAfter, startOfDay } from 'date-fns';
 
@@ -224,6 +225,7 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
 
       if (error) throw error;
 
+      await logAdminAction(adminId, 'create_cycle', 'cycle', undefined, `Created cycle "${cycleName}"`);
       toast({ title: 'Cycle created', description: `"${cycleName}" is now active.` });
       setShowCreate(false);
       setCycleName('');

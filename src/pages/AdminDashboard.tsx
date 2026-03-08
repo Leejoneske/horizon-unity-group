@@ -12,6 +12,7 @@ import {
   Search,
   X,
   BarChart3,
+  Activity,
   
   Edit3,
   AlertCircle,
@@ -24,7 +25,7 @@ import MemberManagement from '@/components/admin/MemberManagement';
 import MessageCenter from '@/components/admin/MessageCenter';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
 import MemberSearchFilter from '@/components/admin/MemberSearchFilter';
-
+import ActivityLog from '@/components/admin/ActivityLog';
 import AnnouncementsManager from '@/components/admin/AnnouncementsManager';
 import AdminSettings from '@/components/admin/AdminSettings';
 import CycleManagement from '@/components/admin/CycleManagement';
@@ -56,7 +57,7 @@ export default function AdminDashboard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [recentContributions, setRecentContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'announcements' | 'settings' | 'cycles'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'announcements' | 'settings' | 'cycles' | 'activity'>('overview');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -259,6 +260,16 @@ export default function AdminDashboard() {
               </button>
 
               <button 
+                onClick={() => setActiveTab('activity')}
+                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                  activeTab === 'activity' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Activity className="w-6 h-6" />
+                <span className="text-xs font-semibold text-center">Activity</span>
+              </button>
+
+              <button 
                 onClick={() => setActiveTab('settings')}
                 className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
                   activeTab === 'settings' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -365,7 +376,7 @@ export default function AdminDashboard() {
             />
           )}
 
-
+import ActivityLog from '@/components/admin/ActivityLog';
           {activeTab === 'announcements' && (
             <AnnouncementsManager 
               adminId={user!.id}
@@ -377,6 +388,10 @@ export default function AdminDashboard() {
             <div className="px-4 pb-6">
               <CycleManagement adminId={user!.id} />
             </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <ActivityLog />
           )}
 
           {activeTab === 'settings' && (

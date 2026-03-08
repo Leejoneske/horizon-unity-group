@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { logAdminAction } from '@/lib/audit-log';
 import { Input } from '@/components/ui/input';
 
 interface AnnouncementsProps {
@@ -45,6 +46,7 @@ export default function AnnouncementsManager({ adminId, onRefresh }: Announcemen
       const { error } = await supabase.from('admin_messages').insert(messages);
       if (error) throw error;
 
+      await logAdminAction(adminId, 'send_announcement', 'announcement', undefined, `Sent to ${profiles.length} members: "${content.substring(0, 80)}"`);
       toast({ title: 'Success', description: `Announcement sent to ${profiles.length} members` });
       setContent('');
       onRefresh();

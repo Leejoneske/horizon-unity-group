@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { sendBalanceAdjustmentSMS } from '@/lib/sms-reminders';
+import { logAdminAction } from '@/lib/audit-log';
 import { Eye, EyeOff, Plus, Minus, Settings, X, Info } from 'lucide-react';
 
 interface Member {
@@ -46,6 +47,9 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
         .eq('user_id', member.user_id);
 
       if (error) throw error;
+
+      await logAdminAction(adminId, 'toggle_visibility', 'visibility', member.user_id,
+        `Set balance ${!member.balance_visible ? 'visible' : 'hidden'} for ${member.full_name}`);
 
       toast({
         title: 'Visibility updated',
@@ -112,6 +116,9 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
 
       if (profileError) throw profileError;
 
+      await logAdminAction(adminId, `balance_${adjustmentType}`, 'balance', selectedMember.user_id,
+        `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}${adjustmentReason ? ` — ${adjustmentReason}` : ''}`);
+
       toast({
         title: 'Balance adjusted',
         description: `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}'s balance`,
@@ -155,6 +162,9 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
         .eq('user_id', selectedMember.user_id);
 
       if (error) throw error;
+
+      await logAdminAction(adminId, 'change_contribution_target', 'contribution', selectedMember.user_id,
+        `Changed ${selectedMember.full_name}'s daily target to KES ${amount.toLocaleString()}`);
 
       toast({
         title: 'Contribution amount updated',
