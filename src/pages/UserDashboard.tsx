@@ -77,6 +77,15 @@ export default function UserDashboard() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
+  // Redirect on session expiry
+  useEffect(() => {
+    if (sessionExpired) {
+      clearSessionExpired();
+      toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
+      navigate('/login', { replace: true });
+    }
+  }, [sessionExpired]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/login');
@@ -88,6 +97,24 @@ export default function UserDashboard() {
       fetchData();
     }
   }, [user, isAdmin, authLoading, navigate]);
+
+  // Periodic session validity check — detect stale sessions before they cause empty UI
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.warn('Session lost during interval check');
+          toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
+          navigate('/login', { replace: true });
+        }
+      } catch {
+        // ignore network errors
+      }
+    }, 60000); // Check every 60 seconds
+    return () => clearInterval(interval);
+  }, [user, navigate, toast]);
 
   // No longer needed - payment stays in-app via iframe
 
