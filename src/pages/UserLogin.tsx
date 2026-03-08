@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Phone, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import logo from '@/assets/logo.png';
