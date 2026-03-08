@@ -13,6 +13,7 @@ export default function UserLogin() {
   const { user, isAdmin, isLoading: authLoading, sessionExpired, clearSessionExpired } = useAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ credential?: string; password?: string }>({});
   const navigate = useNavigate();
