@@ -106,6 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  const clearSessionExpired = () => setSessionExpired(false);
 
   const fetchIsAdmin = async (userId: string) => {
     try {
