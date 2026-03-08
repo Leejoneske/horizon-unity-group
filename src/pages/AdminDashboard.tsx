@@ -390,6 +390,10 @@ import ActivityLog from '@/components/admin/ActivityLog';
             </div>
           )}
 
+          {activeTab === 'activity' && (
+            <ActivityLog />
+          )}
+
           {activeTab === 'settings' && (
             <AdminSettings adminId={user!.id} />
           )}
