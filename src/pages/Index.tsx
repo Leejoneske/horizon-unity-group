@@ -231,8 +231,8 @@ function SimpleLandingPage() {
             <div>
               <h4 className="font-semibold text-gray-900 mb-3">Legal</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#privacy" className="text-gray-600 hover:text-gray-900">Privacy</a></li>
-                <li><a href="#terms" className="text-gray-600 hover:text-gray-900">Terms</a></li>
+                <li><Link to="/privacy" className="text-gray-600 hover:text-gray-900">Privacy</Link></li>
+                <li><Link to="/terms" className="text-gray-600 hover:text-gray-900">Terms</Link></li>
               </ul>
             </div>
           </div>
