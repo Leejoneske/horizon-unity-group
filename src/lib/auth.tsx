@@ -169,12 +169,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === 'SIGNED_OUT') {
           console.log('User signed out');
-          // If user previously had a session and wasn't explicitly signing out,
-          // this indicates session expiry
-          if (hadSession) {
+          if (hadSession && !isExplicitSignOut.current) {
             setSessionExpired(true);
           }
           hadSession = false;
+          isExplicitSignOut.current = false;
           setUser(null);
           setSession(null);
           setIsAdmin(false);
