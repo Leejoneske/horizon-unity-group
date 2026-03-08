@@ -121,7 +121,7 @@ function SimpleLandingPage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-16 px-4">
+      <section id="how-it-works" className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-3">How It Works</h2>
