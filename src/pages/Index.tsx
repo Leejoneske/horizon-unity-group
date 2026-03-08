@@ -64,23 +64,6 @@ function SimpleLandingPage() {
             <p className="text-sm text-gray-500">No credit card required • Start saving in minutes</p>
           </div>
 
-          {/* Hero Illustration - Simple stats */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl p-8">
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">Total Saved</p>
-                <p className="text-3xl font-bold text-gray-900">KES 45,230</p>
-              </div>
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">Members</p>
-                <p className="text-3xl font-bold text-gray-900">12</p>
-              </div>
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">This Month</p>
-                <p className="text-3xl font-bold text-blue-600">KES 3,500</p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
