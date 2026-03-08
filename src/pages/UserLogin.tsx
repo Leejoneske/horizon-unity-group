@@ -10,12 +10,20 @@ import { Loader2, Phone, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
 export default function UserLogin() {
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ credential?: string; password?: string }>({});
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(isAdmin ? '/admin/dashboard' : '/dashboard', { replace: true });
+    }
+  }, [user, isAdmin, authLoading, navigate]);
 
   // Detect if input is email or phone
   const isEmailFormat = (input: string): boolean => {
