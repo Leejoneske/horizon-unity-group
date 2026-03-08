@@ -10,13 +10,25 @@ import { Loader2, Phone, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 
 export default function UserLogin() {
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, isLoading: authLoading, sessionExpired, clearSessionExpired } = useAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ credential?: string; password?: string }>({});
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Show session expired notification
+  useEffect(() => {
+    if (sessionExpired) {
+      toast({
+        title: 'Session Expired',
+        description: 'Your session has expired. Please sign in again.',
+        variant: 'destructive',
+      });
+      clearSessionExpired();
+    }
+  }, [sessionExpired, clearSessionExpired, toast]);
 
   // Redirect if already authenticated
   useEffect(() => {

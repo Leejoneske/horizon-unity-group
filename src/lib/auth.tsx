@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -7,6 +7,8 @@ interface AuthContextType {
   session: Session | null;
   isAdmin: boolean;
   isLoading: boolean;
+  sessionExpired: boolean;
+  clearSessionExpired: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -104,6 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  const clearSessionExpired = () => setSessionExpired(false);
+  const isExplicitSignOut = useRef(false);
 
   const fetchIsAdmin = async (userId: string) => {
     try {
@@ -152,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAdminUser();
 
     let mounted = true;
+    let hadSession = false;
 
     // Set up auth state listener FIRST (before getSession)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -162,11 +169,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === 'SIGNED_OUT') {
           console.log('User signed out');
+          if (hadSession && !isExplicitSignOut.current) {
+            setSessionExpired(true);
+          }
+          hadSession = false;
+          isExplicitSignOut.current = false;
           setUser(null);
           setSession(null);
           setIsAdmin(false);
           setIsLoading(false);
           return;
+        }
+
+        if (currentSession?.user) {
+          hadSession = true;
         }
 
         if (currentSession?.user) {
@@ -235,6 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      isExplicitSignOut.current = true;
       setIsLoading(true);
       // Update last_login timestamp before signing out
       if (user) {
@@ -269,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   return (
-    <AuthContext.Provider value={{ user, session, isAdmin, isLoading, signOut }}>
+    <AuthContext.Provider value={{ user, session, isAdmin, isLoading, sessionExpired, clearSessionExpired, signOut }}>
       {children}
     </AuthContext.Provider>
   );
