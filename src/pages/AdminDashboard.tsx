@@ -365,9 +365,6 @@ export default function AdminDashboard() {
             />
           )}
 
-          {activeTab === 'audit' && (
-            <AuditLogViewer logs={[]} />
-          )}
 
           {activeTab === 'announcements' && (
             <AnnouncementsManager 
