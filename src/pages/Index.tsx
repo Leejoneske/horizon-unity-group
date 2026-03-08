@@ -217,29 +217,27 @@ function SimpleLandingPage() {
               <h4 className="font-semibold text-gray-900 mb-3">Product</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="text-gray-600 hover:text-gray-900">Features</a></li>
-                <li><a href="#how" className="text-gray-600 hover:text-gray-900">How It Works</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Pricing</a></li>
+                <li><a href="#how-it-works" className="text-gray-600 hover:text-gray-900">How It Works</a></li>
+                <li><a href="#trust" className="text-gray-600 hover:text-gray-900">Why Us</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-3">Support</h4>
+              <h4 className="font-semibold text-gray-900 mb-3">Account</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Help Center</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Contact Us</a></li>
+                <li><Link to="/login" className="text-gray-600 hover:text-gray-900">Sign In</Link></li>
+                <li><Link to="/register" className="text-gray-600 hover:text-gray-900">Join Free</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-gray-900 mb-3">Legal</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Privacy</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Terms</a></li>
-                <li><a href="https://github.com/Leejoneske/horizon-unity-group" className="text-gray-600 hover:text-gray-900">GitHub</a></li>
+                <li><a href="#privacy" className="text-gray-600 hover:text-gray-900">Privacy</a></li>
+                <li><a href="#terms" className="text-gray-600 hover:text-gray-900">Terms</a></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-200 pt-8 text-center">
             <p className="text-sm text-gray-600">© {new Date().getFullYear()} Horizon Unit. All rights reserved.</p>
-            <p className="text-xs text-gray-500 mt-2">For technical details and code, visit our <a href="https://github.com/Leejoneske/horizon-unity-group" className="text-blue-600 hover:text-blue-700">GitHub repository</a></p>
           </div>
         </div>
       </footer>
