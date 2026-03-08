@@ -48,6 +48,9 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
 
       if (error) throw error;
 
+      await logAdminAction(adminId, 'toggle_visibility', 'visibility', member.user_id,
+        `Set balance ${!member.balance_visible ? 'visible' : 'hidden'} for ${member.full_name}`);
+
       toast({
         title: 'Visibility updated',
         description: `Balance is now ${!member.balance_visible ? 'visible' : 'hidden'} for ${member.full_name}`,
