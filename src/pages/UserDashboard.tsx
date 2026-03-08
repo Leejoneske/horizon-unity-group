@@ -19,6 +19,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseIS
 import { useToast } from '@/hooks/use-toast';
 import TipsCard from '@/components/TipsCard';
 import NotificationCenter from '@/components/NotificationCenter';
+import AccountDetailsPanel from '@/components/AccountDetailsPanel';
 
 interface Contribution {
   id: string;
