@@ -56,7 +56,7 @@ export default function AdminDashboard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [recentContributions, setRecentContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'audit' | 'announcements' | 'settings' | 'cycles'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'members' | 'messages' | 'analytics' | 'search' | 'announcements' | 'settings' | 'cycles'>('overview');
   const navigate = useNavigate();
 
   useEffect(() => {
