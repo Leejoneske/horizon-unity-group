@@ -166,7 +166,7 @@ function SimpleLandingPage() {
             <div className="text-center md:text-left">
               <Heart className="w-10 h-10 text-blue-600 mb-4 mx-auto md:mx-0" />
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Everyone Deserves a <span className="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">HUG</span></h2>
-              <p className="text-lg font-semibold text-gray-700 mb-4"><span className="text-white bg-blue-600 px-1 rounded">H</span>orizon <span className="text-white bg-blue-600 px-1 rounded">U</span>nit <span className="text-white bg-blue-600 px-1 rounded">G</span>roup</p>
+              <p className="text-lg font-semibold text-gray-700 mb-4"><span className="text-blue-600 font-bold">H</span>orizon <span className="text-blue-600 font-bold">U</span>nit <span className="text-blue-600 font-bold">G</span>roup</p>
               <p className="text-gray-600 text-lg leading-relaxed mb-6">
                 At Horizon, we believe that saving is more than just numbers — it's about holding each other up. That's why we call our community a <strong>HUG</strong>. Because when people come together with trust, transparency, and a shared goal, great things happen.
               </p>
