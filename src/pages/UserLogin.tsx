@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Phone, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import logo from '@/assets/logo.png';
@@ -13,6 +14,7 @@ export default function UserLogin() {
   const { user, isAdmin, isLoading: authLoading, sessionExpired, clearSessionExpired } = useAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ credential?: string; password?: string }>({});
   const navigate = useNavigate();
@@ -84,6 +86,9 @@ export default function UserLogin() {
         // User login with phone
         email = formatPhoneEmail(credential);
       }
+
+      // Store remember-me preference before signing in
+      localStorage.setItem('remember_me', rememberMe ? 'true' : 'false');
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -211,6 +216,18 @@ export default function UserLogin() {
                   {errors.password}
                 </div>
               )}
+            </div>
+
+            {/* Remember Me */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+              />
+              <Label htmlFor="remember-me" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                Remember me for 30 days
+              </Label>
             </div>
 
             {/* Submit Button */}

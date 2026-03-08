@@ -201,9 +201,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Get initial session - this will trigger onAuthStateChange with INITIAL_SESSION
+    // Get initial session
     const getInitialSession = async () => {
       try {
+        // If "remember me" was not checked, clear session on fresh page load
+        const rememberMe = localStorage.getItem('remember_me');
+        const sessionTabKey = sessionStorage.getItem('session_active');
+
+        if (rememberMe !== 'true' && !sessionTabKey) {
+          // Not remembered and this is a new browser session (tab was closed)
+          const { data: { session: existingSession } } = await supabase.auth.getSession();
+          if (existingSession) {
+            console.log('Session not remembered, clearing on new browser session');
+            await supabase.auth.signOut({ scope: 'local' });
+            setUser(null);
+            setSession(null);
+            setIsAdmin(false);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Mark this tab session as active
+        sessionStorage.setItem('session_active', 'true');
+
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -212,7 +233,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!mounted) return;
 
-        // If no session found, ensure loading stops
         if (!initialSession) {
           console.log('No session found');
           setUser(null);
@@ -220,7 +240,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(false);
           setIsLoading(false);
         }
-        // If session exists, onAuthStateChange INITIAL_SESSION will handle it
       } catch (e) {
         console.error('Error during session recovery:', e);
         if (mounted) {
@@ -253,6 +272,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       isExplicitSignOut.current = true;
       setIsLoading(true);
+      // Clear remember-me on explicit sign out
+      localStorage.removeItem('remember_me');
+      sessionStorage.removeItem('session_active');
       // Update last_login timestamp before signing out
       if (user) {
         try {
