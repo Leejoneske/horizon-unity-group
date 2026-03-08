@@ -2,8 +2,13 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, FileText, Users, CreditCard, AlertTriangle, Scale, RefreshCw } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import logo from '@/assets/logo.png';
+import { useEffect } from 'react';
 
 export default function TermsOfService() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen bg-[hsl(220,20%,8%)] text-[hsl(220,10%,85%)]">
       <SEOHead
