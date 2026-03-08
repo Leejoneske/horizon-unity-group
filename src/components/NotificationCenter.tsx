@@ -47,7 +47,7 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
 
     // Subscribe to realtime updates
     const channel = supabase
-      .channel('notifications')
+      .channel(`notifications-${userId}`)
       .on(
         'postgres_changes',
         {
@@ -56,10 +56,8 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
           table: 'admin_messages',
           filter: `user_id=eq.${userId}`,
         },
-        (payload) => {
-          const newNotification = payload.new as Notification;
-          setNotifications(prev => [newNotification, ...prev]);
-          onUnreadCountChange?.((prev => prev.filter(n => !n.is_read).length + 1)(notifications));
+        () => {
+          fetchNotifications();
         }
       )
       .subscribe();
