@@ -183,6 +183,18 @@ export default function UserDashboard() {
           .single()
       ]);
 
+      // Check if profile fetch failed due to auth — means session is stale
+      if (profileRes.error) {
+        const code = (profileRes.error as any)?.code;
+        const msg = profileRes.error.message?.toLowerCase() || '';
+        if (code === 'PGRST301' || msg.includes('jwt') || msg.includes('unauthorized') || msg.includes('expired')) {
+          console.warn('Session expired during data fetch');
+          toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
+          navigate('/login', { replace: true });
+          return;
+        }
+      }
+
       const activeCycleData = cycleRes.data as ActiveCycle | null;
       if (activeCycleData) setActiveCycle(activeCycleData);
       else setActiveCycle(null);
