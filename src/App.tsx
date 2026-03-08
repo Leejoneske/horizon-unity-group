@@ -78,6 +78,8 @@ const AppRoutes = () => (
     <Route path="/admin/login" element={<Navigate to="/login" replace />} />
     <Route path="/admin/dashboard" element={<ProtectedRoute element={<AdminDashboard />} requireAdmin={true} />} />
     <Route path="/admin/member/:userId" element={<ProtectedRoute element={<MemberDetailPage />} requireAdmin={true} />} />
+    <Route path="/privacy" element={<PrivacyPolicy />} />
+    <Route path="/terms" element={<TermsOfService />} />
     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
     <Route path="*" element={<NotFound />} />
   </Routes>
