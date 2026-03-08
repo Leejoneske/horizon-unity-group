@@ -215,6 +215,18 @@ export default function UserLogin() {
               )}
             </div>
 
+            {/* Remember Me */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+              />
+              <Label htmlFor="remember-me" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                Remember me for 30 days
+              </Label>
+            </div>
+
             {/* Submit Button */}
             <Button 
               type="submit" 
