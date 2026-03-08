@@ -181,6 +181,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Handle token refresh failure — session becomes null while we had one before
+        if (event === 'TOKEN_REFRESHED' && !currentSession && hadSession) {
+          console.warn('Token refresh failed — clearing session');
+          setSessionExpired(true);
+          hadSession = false;
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          setIsLoading(false);
+          return;
+        }
+
         if (currentSession?.user) {
           hadSession = true;
         }
