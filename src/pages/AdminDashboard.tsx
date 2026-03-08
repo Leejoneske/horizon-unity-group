@@ -12,7 +12,7 @@ import {
   Search,
   X,
   BarChart3,
-  LogIn,
+  
   Edit3,
   AlertCircle,
   SendHorizontal,
