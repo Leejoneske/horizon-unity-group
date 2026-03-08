@@ -31,12 +31,32 @@ export default function AnalyticsDashboard({ members, contributions, totalSaving
       };
     });
 
-    // Status distribution
-    const statusData = [
-      { name: 'Active', value: members.filter(m => m.member_status === 'active').length },
-      { name: 'Inactive', value: members.filter(m => m.member_status === 'inactive').length },
-      { name: 'Suspended', value: members.filter(m => m.member_status === 'suspended').length }
-    ];
+    // Status distribution - derive from contribution activity
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const statusData = (() => {
+      let active = 0, inactive = 0, noActivity = 0;
+      members.forEach(m => {
+        if (m.contribution_count > 0) {
+          // Check if member has recent contributions (last 30 days)
+          const memberContribs = contributions.filter(c => c.profiles?.full_name === m.full_name || c.user_id === m.user_id);
+          const hasRecent = memberContribs.some(c => new Date(c.contribution_date) >= thirtyDaysAgo);
+          if (hasRecent) {
+            active++;
+          } else {
+            inactive++;
+          }
+        } else {
+          noActivity++;
+        }
+      });
+      return [
+        { name: 'Active', value: active },
+        { name: 'Inactive', value: inactive },
+        { name: 'No Activity', value: noActivity }
+      ];
+    })();
 
     return { activeCount, contributionRate, avgContribution, memberGrowth, monthlyData, statusData };
   }, [members, contributions, totalSavings]);
