@@ -225,6 +225,7 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
 
       if (error) throw error;
 
+      await logAdminAction(adminId, 'create_cycle', 'cycle', undefined, `Created cycle "${cycleName}"`);
       toast({ title: 'Cycle created', description: `"${cycleName}" is now active.` });
       setShowCreate(false);
       setCycleName('');
