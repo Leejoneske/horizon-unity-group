@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { logAdminAction } from '@/lib/audit-log';
 import { Input } from '@/components/ui/input';
 
 interface AnnouncementsProps {
