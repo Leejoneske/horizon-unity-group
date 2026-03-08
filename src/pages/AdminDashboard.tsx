@@ -25,7 +25,7 @@ import MemberManagement from '@/components/admin/MemberManagement';
 import MessageCenter from '@/components/admin/MessageCenter';
 import AnalyticsDashboard from '@/components/admin/AnalyticsDashboard';
 import MemberSearchFilter from '@/components/admin/MemberSearchFilter';
-
+import ActivityLog from '@/components/admin/ActivityLog';
 import AnnouncementsManager from '@/components/admin/AnnouncementsManager';
 import AdminSettings from '@/components/admin/AdminSettings';
 import CycleManagement from '@/components/admin/CycleManagement';
