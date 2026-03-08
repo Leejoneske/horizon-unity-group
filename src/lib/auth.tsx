@@ -7,6 +7,8 @@ interface AuthContextType {
   session: Session | null;
   isAdmin: boolean;
   isLoading: boolean;
+  sessionExpired: boolean;
+  clearSessionExpired: () => void;
   signOut: () => Promise<void>;
 }
 
