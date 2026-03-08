@@ -70,6 +70,7 @@ export default function UserDashboard() {
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [pendingReference, setPendingReference] = useState<string | null>(null);
   const [pesapalIframeUrl, setPesapalIframeUrl] = useState<string | null>(null);
+  const [showAccountDetails, setShowAccountDetails] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
