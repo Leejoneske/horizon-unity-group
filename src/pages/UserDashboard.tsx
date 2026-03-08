@@ -511,7 +511,10 @@ export default function UserDashboard() {
                 <span className="text-base font-semibold text-gray-900">Add money</span>
               </button>
               
-              <button className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95">
+              <button 
+                onClick={() => setShowAccountDetails(true)}
+                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
+              >
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
                   <Building2 className="w-6 h-6 text-gray-900" />
                 </div>
