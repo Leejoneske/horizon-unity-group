@@ -157,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAdminUser();
 
     let mounted = true;
+    let hadSession = false;
 
     // Set up auth state listener FIRST (before getSession)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -167,11 +168,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (event === 'SIGNED_OUT') {
           console.log('User signed out');
+          // If user previously had a session and wasn't explicitly signing out,
+          // this indicates session expiry
+          if (hadSession) {
+            setSessionExpired(true);
+          }
+          hadSession = false;
           setUser(null);
           setSession(null);
           setIsAdmin(false);
           setIsLoading(false);
           return;
+        }
+
+        if (currentSession?.user) {
+          hadSession = true;
         }
 
         if (currentSession?.user) {
