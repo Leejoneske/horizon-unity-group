@@ -166,59 +166,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let mounted = true;
 
-    // Get initial session with validation
+    // Set up auth state listener FIRST (before getSession)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        if (!mounted) return;
+
+        console.log('Auth state changed:', event, { hasSession: !!currentSession });
+
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          setIsLoading(false);
+          return;
+        }
+
+        if (currentSession?.user) {
+          // Use setTimeout to avoid Supabase deadlock when querying during auth callback
+          setTimeout(async () => {
+            if (!mounted) return;
+            await updateAuthState(currentSession);
+            setIsLoading(false);
+          }, 0);
+        } else {
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    // Get initial session - this will trigger onAuthStateChange with INITIAL_SESSION
     const getInitialSession = async () => {
       try {
-        console.log('Attempting to restore session...');
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.warn('Session recovery warning:', sessionError.message);
+        if (error) {
+          console.warn('Session error:', error.message);
         }
 
         if (!mounted) return;
 
-        if (initialSession) {
-          console.log('Session found, validating...');
-          try {
-            const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (refreshError || !refreshedSession) {
-              // Session is invalid/expired - clear it completely
-              console.warn('Session expired or invalid, signing out:', refreshError?.message);
-              await supabase.auth.signOut({ scope: 'local' });
-              setUser(null);
-              setSession(null);
-              setIsAdmin(false);
-            } else {
-              console.log('Session refreshed successfully');
-              await updateAuthState(refreshedSession);
-            }
-          } catch (refreshErr) {
-            console.warn('Error refreshing session, clearing:', refreshErr);
-            await supabase.auth.signOut({ scope: 'local' });
-            setUser(null);
-            setSession(null);
-            setIsAdmin(false);
-          }
-        } else {
+        // If no session found, ensure loading stops
+        if (!initialSession) {
           console.log('No session found');
           setUser(null);
           setSession(null);
           setIsAdmin(false);
+          setIsLoading(false);
         }
+        // If session exists, onAuthStateChange INITIAL_SESSION will handle it
       } catch (e) {
         console.error('Error during session recovery:', e);
         if (mounted) {
-          // Clear any stale data on error
-          try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
           setUser(null);
           setSession(null);
           setIsAdmin(false);
-        }
-      } finally {
-        if (mounted) {
           setIsLoading(false);
         }
       }
@@ -226,37 +231,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getInitialSession();
 
-    // Set up auth state listener for realtime updates
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        if (!mounted) return;
-
-        console.log('Auth state changed:', event, { hasSession: !!currentSession });
-
-        // Handle all state changes uniformly
-        if (event === 'SIGNED_OUT') {
-          console.log('User signed out');
-          setUser(null);
-          setSession(null);
-          setIsAdmin(false);
-          return;
-        }
-
-        // For TOKEN_REFRESHED events, ensure we maintain the session
-        if (event === 'TOKEN_REFRESHED' && currentSession) {
-          console.log('Token refreshed, maintaining session');
-          await updateAuthState(currentSession);
-          return;
-        }
-
-        // Always update state with current session (covers SIGNED_IN, USER_UPDATED, etc)
-        await updateAuthState(currentSession);
+    // Safety timeout - if still loading after 8 seconds, force stop
+    const timeout = setTimeout(() => {
+      if (mounted) {
+        console.warn('Auth loading timeout - forcing completion');
+        setIsLoading(false);
       }
-    );
+    }, 8000);
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      clearTimeout(timeout);
     };
   }, []);
 
