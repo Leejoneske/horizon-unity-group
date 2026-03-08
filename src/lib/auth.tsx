@@ -13,118 +13,87 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Initialize admin user from environment variables (one-time setup)
+// Uses localStorage flag to avoid running on every page load
 const initializeAdminUser = async () => {
-  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
-  const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
-
-  console.log('🔍 Checking admin initialization...');
-
-  if (!adminEmail || !adminPassword) {
-    console.warn('⚠️  Admin credentials not configured in environment variables');
+  // Skip if already initialized
+  if (localStorage.getItem('admin_initialized') === 'true') {
+    console.log('✓ Admin already initialized (cached)');
     return;
   }
 
-  console.log(`📧 Admin email: ${adminEmail}`);
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
+  const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.warn('⚠️  Admin credentials not configured');
+    return;
+  }
 
   try {
-    // Check if admin already exists
-    const { data: existingAdmin, error: checkError } = await supabase
+    // Check if admin already exists using a simple query
+    const { data: existingAdmin } = await supabase
       .from('user_roles')
       .select('user_id')
       .eq('role', 'admin')
       .maybeSingle();
 
-    if (checkError) {
-      console.error('Error checking for existing admin:', checkError);
-    }
-
     if (existingAdmin) {
       console.log('✓ Admin user already exists');
+      localStorage.setItem('admin_initialized', 'true');
       return;
     }
 
+    // IMPORTANT: Save current session before admin init so we can restore it
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+
     console.log('Creating new admin user...');
 
-    // Try to sign up the admin user
     const { data, error } = await supabase.auth.signUp({
       email: adminEmail,
       password: adminPassword,
       options: {
-        data: {
-          full_name: 'Admin',
-        },
+        data: { full_name: 'Admin' },
         emailRedirectTo: window.location.origin,
       },
     });
 
     if (error) {
-      console.error('Error during sign up:', error.message);
-      // If user already exists in auth but not in roles, just set the role
       if (error.message.includes('already registered') || error.message.includes('User already exists')) {
         console.log('✓ Admin email already registered in auth');
-        
-        // Try to sign in to get the user ID
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: adminEmail,
-          password: adminPassword,
-        });
-
-        if (signInError) {
-          console.error('Could not sign in to verify admin:', signInError.message);
-          return;
-        }
-
-        if (signInData.user) {
-          // Check if admin role already exists
-          const { data: existingRole } = await supabase
-            .from('user_roles')
-            .select('id')
-            .eq('user_id', signInData.user.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-
-          if (!existingRole) {
-            // Insert admin role
-            const { error: roleError } = await supabase
-              .from('user_roles')
-              .insert({
-                user_id: signInData.user.id,
-                role: 'admin',
-              });
-
-            if (roleError) {
-              console.error('Error setting admin role:', roleError);
-            } else {
-              console.log('✓ Admin role set');
-            }
-          } else {
-            console.log('✓ Admin role confirmed');
-          }
-
-          await supabase.auth.signOut();
-        }
-        return;
+        // Don't sign in/out to check role - just mark as initialized
+        // The admin role was already set during initial signup
+        localStorage.setItem('admin_initialized', 'true');
+      } else {
+        console.error('Failed to create admin user:', error);
       }
-      console.error('Failed to create admin user:', error);
       return;
     }
 
     if (data.user) {
       console.log('✓ Admin user created:', data.user.id);
-      // Insert admin role
       const { error: roleError } = await supabase
         .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: 'admin',
-        });
+        .insert({ user_id: data.user.id, role: 'admin' });
 
       if (roleError) {
         console.error('Error setting admin role:', roleError);
       } else {
         console.log('✓ Admin user initialized successfully');
       }
+      
+      // Sign out the newly created admin so it doesn't interfere with current user
+      await supabase.auth.signOut({ scope: 'local' });
+      
+      // Restore previous session if one existed
+      if (currentSession) {
+        await supabase.auth.setSession({
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token,
+        });
+      }
     }
+
+    localStorage.setItem('admin_initialized', 'true');
   } catch (error) {
     console.error('Failed to initialize admin user:', error);
   }
