@@ -12,6 +12,7 @@ import {
   Search,
   X,
   BarChart3,
+  Activity,
   
   Edit3,
   AlertCircle,
