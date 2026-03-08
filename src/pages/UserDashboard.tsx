@@ -429,11 +429,6 @@ export default function UserDashboard() {
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
               {profile?.full_name?.substring(0, 2).toUpperCase() || 'U'}
             </div>
-            {unreadMessages.length > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-400 rounded-full border-2 border-white flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <button 
@@ -443,6 +438,7 @@ export default function UserDashboard() {
               <Share2 className="w-4 h-4" />
               Invite
             </button>
+            {user && <NotificationCenter userId={user.id} />}
             <button 
               onClick={handleSignOut}
               className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition"
