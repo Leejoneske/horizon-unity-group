@@ -146,19 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Refresh session from server to ensure it's current
-  const refreshSessionFromServer = async () => {
-    try {
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-      if (!error && currentSession) {
-        return currentSession;
-      }
-      return null;
-    } catch (e) {
-      console.error('Error refreshing session:', e);
-      return null;
-    }
-  };
 
   useEffect(() => {
     // Initialize admin on app load (only once)
