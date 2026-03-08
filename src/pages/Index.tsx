@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import hugIllustration from '@/assets/hug-illustration.png';
 import { Button } from '@/components/ui/button';
 import { SEOHead } from '@/components/SEOHead';
 import { 
