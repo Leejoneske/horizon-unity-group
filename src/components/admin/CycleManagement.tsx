@@ -102,6 +102,21 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
         .update({ status: 'ended', total_savings: totalSavings })
         .eq('id', cycle.id);
 
+      // Send cycle ended SMS to all members
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('phone_number, full_name');
+        if (profiles) {
+          const smsPromises = profiles
+            .filter(p => p.phone_number)
+            .map(p => sendCycleEndedSMS(p.phone_number!, p.full_name, cycle.cycle_name, totalSavings));
+          await Promise.allSettled(smsPromises);
+        }
+      } catch (smsErr) {
+        console.error('Cycle ended SMS failed:', smsErr);
+      }
+
       toast({
         title: 'Cycle Ended',
         description: `"${cycle.cycle_name}" ended. Total: KES ${totalSavings.toLocaleString()}. Balances revealed.`,
