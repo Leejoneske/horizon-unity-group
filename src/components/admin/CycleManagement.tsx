@@ -61,9 +61,9 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
     }
   };
 
-  // Check and auto-end expired cycles
+  // Check and auto-end expired cycles + send "ending soon" reminders
   useEffect(() => {
-    const checkExpiredCycles = async () => {
+    const checkCycles = async () => {
       const today = startOfDay(new Date());
       const activeCycles = cycles.filter(c => c.status === 'active');
       
@@ -71,12 +71,30 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
         const end = parseISO(cycle.end_date);
         if (isAfter(today, end)) {
           await endCycleWithCalculation(cycle);
+        } else {
+          // Send "ending soon" SMS when 7 or 3 days left
+          const daysLeft = differenceInDays(end, today);
+          if (daysLeft === 7 || daysLeft === 3 || daysLeft === 1) {
+            try {
+              const { data: profiles } = await supabase
+                .from('profiles')
+                .select('phone_number, full_name');
+              if (profiles) {
+                const smsPromises = profiles
+                  .filter(p => p.phone_number)
+                  .map(p => sendCycleEndingSoonSMS(p.phone_number!, p.full_name, cycle.cycle_name, daysLeft));
+                await Promise.allSettled(smsPromises);
+              }
+            } catch (smsErr) {
+              console.error('Cycle ending soon SMS failed:', smsErr);
+            }
+          }
         }
       }
     };
 
     if (cycles.length > 0) {
-      checkExpiredCycles();
+      checkCycles();
     }
   }, [cycles.length]);
 
