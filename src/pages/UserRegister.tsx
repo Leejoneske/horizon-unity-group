@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { sendWelcomeSMS } from '@/lib/sms-reminders';
 import { SEOHead } from '@/components/SEOHead';
 import { Loader2, Phone, Lock, User, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import logo from '@/assets/logo.png';
