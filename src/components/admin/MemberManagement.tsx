@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { sendBalanceAdjustmentSMS } from '@/lib/sms-reminders';
+import { sendBalanceAdjustmentSMS, sendTargetChangeSMS } from '@/lib/sms-reminders';
 import { logAdminAction } from '@/lib/audit-log';
 import { Eye, EyeOff, Plus, Minus, Settings, X, Info } from 'lucide-react';
 
