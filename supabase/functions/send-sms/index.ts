@@ -16,16 +16,12 @@ serve(async (req) => {
   }
 
   try {
-    const AT_API_KEY = Deno.env.get('AT_API_KEY');
-    const AT_USERNAME = Deno.env.get('AT_USERNAME');
-    const AT_SENDER_ID = Deno.env.get('AT_SENDER_ID') || '';
+    const TEXTSMS_API_KEY = Deno.env.get('TEXTSMS_API_KEY');
+    const TEXTSMS_PARTNER_ID = Deno.env.get('TEXTSMS_PARTNER_ID');
+    const TEXTSMS_SENDER_ID = Deno.env.get('TEXTSMS_SENDER_ID') || 'TextSMS';
 
-    console.log('AT_USERNAME:', AT_USERNAME);
-    console.log('AT_API_KEY length:', AT_API_KEY?.length || 0);
-    console.log('AT_API_KEY first 8 chars:', AT_API_KEY?.substring(0, 8));
-
-    if (!AT_API_KEY || !AT_USERNAME) {
-      throw new Error('Africa\'s Talking credentials not configured');
+    if (!TEXTSMS_API_KEY || !TEXTSMS_PARTNER_ID) {
+      throw new Error('TextSMS credentials not configured');
     }
 
     const { to, message }: SMSRequest = await req.json();
@@ -36,58 +32,50 @@ serve(async (req) => {
 
     const formattedPhone = formatPhoneNumber(to);
 
-    // Africa's Talking SMS API
-    const atUrl = 'https://api.africastalking.com/version1/messaging';
-    
-    const body = new URLSearchParams({
-      username: AT_USERNAME,
-      to: formattedPhone,
-      message: message,
-    });
+    console.log('Sending SMS via TextSMS to:', formattedPhone);
 
-    if (AT_SENDER_ID) {
-      body.append('from', AT_SENDER_ID);
-    }
-
-    const response = await fetch(atUrl, {
+    // TextSMS API endpoint
+    const response = await fetch('https://sms.textsms.co.ke/api/services/sendsms/', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'apiKey': AT_API_KEY,
-        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
-      body: body.toString(),
+      body: JSON.stringify({
+        apikey: TEXTSMS_API_KEY,
+        partnerID: TEXTSMS_PARTNER_ID,
+        message: message,
+        shortcode: TEXTSMS_SENDER_ID,
+        mobile: formattedPhone,
+      }),
     });
 
     const responseText = await response.text();
-    console.log('Africa\'s Talking raw response:', responseText);
+    console.log('TextSMS raw response:', responseText);
 
     let result;
     try {
       result = JSON.parse(responseText);
     } catch {
-      console.error('Non-JSON response from Africa\'s Talking:', responseText);
-      throw new Error(`Africa's Talking API error: ${responseText}`);
+      console.error('Non-JSON response from TextSMS:', responseText);
+      throw new Error(`TextSMS API error: ${responseText}`);
     }
 
-    if (!response.ok) {
-      console.error('Africa\'s Talking API error:', result);
-      throw new Error(result.SMSMessageData?.Message || 'Failed to send SMS');
-    }
+    // TextSMS returns response with "responses" array
+    const success = result?.responses?.[0]?.['response-code'] === 200 || 
+                    result?.['response-code'] === 200 ||
+                    response.ok;
 
-    const recipients = result.SMSMessageData?.Recipients || [];
-    const firstRecipient = recipients[0];
-    const messageId = firstRecipient?.messageId || 'unknown';
-    const status = firstRecipient?.status || 'Unknown';
+    const messageId = result?.responses?.[0]?.['messageid'] || 
+                      result?.['messageid'] || 'unknown';
 
-    console.log('SMS sent via Africa\'s Talking:', messageId, 'Status:', status);
+    console.log('SMS result:', JSON.stringify(result), 'Success:', success);
 
     return new Response(
       JSON.stringify({ 
-        success: status === 'Success',
+        success,
         message_sid: messageId,
-        status: status,
-        cost: firstRecipient?.cost || '0',
+        status: success ? 'Success' : 'Failed',
+        raw: result,
       }),
       { 
         status: 200, 
@@ -111,12 +99,12 @@ function formatPhoneNumber(phoneNumber: string): string {
   const cleaned = phoneNumber.replace(/\D/g, '');
   
   if (cleaned.startsWith('254')) {
-    return '+' + cleaned;
+    return cleaned;
   } else if (cleaned.startsWith('0') && cleaned.length === 10) {
-    return '+254' + cleaned.substring(1);
+    return '254' + cleaned.substring(1);
   } else if (cleaned.length === 9) {
-    return '+254' + cleaned;
+    return '254' + cleaned;
   }
   
-  return cleaned.startsWith('+') ? cleaned : '+' + cleaned;
+  return cleaned.startsWith('+') ? cleaned.replace('+', '') : cleaned;
 }
