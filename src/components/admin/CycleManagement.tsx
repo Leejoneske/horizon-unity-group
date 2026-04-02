@@ -242,6 +242,24 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
       if (error) throw error;
 
       await logAdminAction(adminId, 'create_cycle', 'cycle', undefined, `Created cycle "${cycleName}"`);
+
+      // Send cycle started SMS to all members
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('phone_number, full_name, daily_contribution_amount');
+        if (profiles) {
+          const formattedStart = format(parseISO(startDate), 'MMM d, yyyy');
+          const formattedEnd = format(parseISO(endDate), 'MMM d, yyyy');
+          const smsPromises = profiles
+            .filter(p => p.phone_number)
+            .map(p => sendCycleStartedSMS(p.phone_number!, p.full_name, cycleName, formattedStart, formattedEnd, p.daily_contribution_amount));
+          await Promise.allSettled(smsPromises);
+        }
+      } catch (smsErr) {
+        console.error('Cycle started SMS failed:', smsErr);
+      }
+
       toast({ title: 'Cycle created', description: `"${cycleName}" is now active.` });
       setShowCreate(false);
       setCycleName('');

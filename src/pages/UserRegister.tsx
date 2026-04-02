@@ -86,6 +86,13 @@ export default function UserRegister() {
 
       if (error) throw error;
 
+      // Send welcome SMS
+      try {
+        await sendWelcomeSMS(cleanPhone, fullName);
+      } catch (smsErr) {
+        console.error('Welcome SMS failed:', smsErr);
+      }
+
       toast({
         title: 'Account created!',
         description: 'Welcome to Horizon Unit. You can now log in.',

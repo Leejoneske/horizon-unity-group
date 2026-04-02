@@ -170,6 +170,15 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
         title: 'Contribution amount updated',
         description: `${selectedMember.full_name}'s daily contribution is now KES ${amount.toLocaleString()}`,
       });
+
+      // Send SMS about target change
+      try {
+        if (selectedMember.phone_number) {
+          await sendTargetChangeSMS(selectedMember.phone_number, selectedMember.full_name, amount);
+        }
+      } catch (smsErr) {
+        console.error('Target change SMS failed:', smsErr);
+      }
       
       setIsContribDialogOpen(false);
       setNewDailyAmount('');
