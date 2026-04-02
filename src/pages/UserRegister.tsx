@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { sendWelcomeSMS } from '@/lib/sms-reminders';
 import { SEOHead } from '@/components/SEOHead';
 import { Loader2, Phone, Lock, User, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import logo from '@/assets/logo.png';
@@ -84,6 +85,13 @@ export default function UserRegister() {
       });
 
       if (error) throw error;
+
+      // Send welcome SMS
+      try {
+        await sendWelcomeSMS(cleanPhone, fullName);
+      } catch (smsErr) {
+        console.error('Welcome SMS failed:', smsErr);
+      }
 
       toast({
         title: 'Account created!',

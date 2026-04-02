@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { logAdminAction } from '@/lib/audit-log';
+import { sendCycleStartedSMS, sendCycleEndedSMS, sendCycleEndingSoonSMS } from '@/lib/sms-reminders';
 import { CalendarRange, Plus, History, CheckCircle2, Clock, AlertCircle, X, Users, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO, differenceInDays, isAfter, startOfDay } from 'date-fns';
 
@@ -60,9 +61,9 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
     }
   };
 
-  // Check and auto-end expired cycles
+  // Check and auto-end expired cycles + send "ending soon" reminders
   useEffect(() => {
-    const checkExpiredCycles = async () => {
+    const checkCycles = async () => {
       const today = startOfDay(new Date());
       const activeCycles = cycles.filter(c => c.status === 'active');
       
@@ -70,12 +71,30 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
         const end = parseISO(cycle.end_date);
         if (isAfter(today, end)) {
           await endCycleWithCalculation(cycle);
+        } else {
+          // Send "ending soon" SMS when 7 or 3 days left
+          const daysLeft = differenceInDays(end, today);
+          if (daysLeft === 7 || daysLeft === 3 || daysLeft === 1) {
+            try {
+              const { data: profiles } = await supabase
+                .from('profiles')
+                .select('phone_number, full_name');
+              if (profiles) {
+                const smsPromises = profiles
+                  .filter(p => p.phone_number)
+                  .map(p => sendCycleEndingSoonSMS(p.phone_number!, p.full_name, cycle.cycle_name, daysLeft));
+                await Promise.allSettled(smsPromises);
+              }
+            } catch (smsErr) {
+              console.error('Cycle ending soon SMS failed:', smsErr);
+            }
+          }
         }
       }
     };
 
     if (cycles.length > 0) {
-      checkExpiredCycles();
+      checkCycles();
     }
   }, [cycles.length]);
 
@@ -100,6 +119,21 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
         .from('savings_cycles')
         .update({ status: 'ended', total_savings: totalSavings })
         .eq('id', cycle.id);
+
+      // Send cycle ended SMS to all members
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('phone_number, full_name');
+        if (profiles) {
+          const smsPromises = profiles
+            .filter(p => p.phone_number)
+            .map(p => sendCycleEndedSMS(p.phone_number!, p.full_name, cycle.cycle_name, totalSavings));
+          await Promise.allSettled(smsPromises);
+        }
+      } catch (smsErr) {
+        console.error('Cycle ended SMS failed:', smsErr);
+      }
 
       toast({
         title: 'Cycle Ended',
@@ -226,6 +260,24 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
       if (error) throw error;
 
       await logAdminAction(adminId, 'create_cycle', 'cycle', undefined, `Created cycle "${cycleName}"`);
+
+      // Send cycle started SMS to all members
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('phone_number, full_name, daily_contribution_amount');
+        if (profiles) {
+          const formattedStart = format(parseISO(startDate), 'MMM d, yyyy');
+          const formattedEnd = format(parseISO(endDate), 'MMM d, yyyy');
+          const smsPromises = profiles
+            .filter(p => p.phone_number)
+            .map(p => sendCycleStartedSMS(p.phone_number!, p.full_name, cycleName, formattedStart, formattedEnd, p.daily_contribution_amount));
+          await Promise.allSettled(smsPromises);
+        }
+      } catch (smsErr) {
+        console.error('Cycle started SMS failed:', smsErr);
+      }
+
       toast({ title: 'Cycle created', description: `"${cycleName}" is now active.` });
       setShowCreate(false);
       setCycleName('');

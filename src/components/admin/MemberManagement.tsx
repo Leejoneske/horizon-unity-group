@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { sendBalanceAdjustmentSMS } from '@/lib/sms-reminders';
+import { sendBalanceAdjustmentSMS, sendTargetChangeSMS } from '@/lib/sms-reminders';
 import { logAdminAction } from '@/lib/audit-log';
 import { Eye, EyeOff, Plus, Minus, Settings, X, Info } from 'lucide-react';
 
@@ -170,6 +170,15 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
         title: 'Contribution amount updated',
         description: `${selectedMember.full_name}'s daily contribution is now KES ${amount.toLocaleString()}`,
       });
+
+      // Send SMS about target change
+      try {
+        if (selectedMember.phone_number) {
+          await sendTargetChangeSMS(selectedMember.phone_number, selectedMember.full_name, amount);
+        }
+      } catch (smsErr) {
+        console.error('Target change SMS failed:', smsErr);
+      }
       
       setIsContribDialogOpen(false);
       setNewDailyAmount('');

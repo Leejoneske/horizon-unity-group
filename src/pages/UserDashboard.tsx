@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { hasSupabaseCredentials } from '@/integrations/supabase/client';
-import { sendContributionSuccessSMS } from '@/lib/sms-reminders';
+import { sendContributionSuccessSMS, sendMilestoneCongreatsSMS } from '@/lib/sms-reminders';
 import { 
   Plus,
   Building2,
@@ -375,10 +375,21 @@ export default function UserDashboard() {
 
       toast({ title: 'Contribution added!', description: `KES ${dailyAmount.toLocaleString()} recorded for ${format(date, 'MMM d, yyyy')}.` });
 
-      // Send confirmation SMS
+      // Send confirmation SMS + check for milestones
       try {
         if (profile?.phone_number) {
           await sendContributionSuccessSMS(profile.phone_number, dailyAmount, profile.full_name);
+          
+          // Check for milestone (contribution count after this one)
+          const newCount = (contributions?.length || 0) + 1;
+          if ([7, 14, 30, 50, 100].includes(newCount)) {
+            await sendMilestoneCongreatsSMS(
+              profile.phone_number,
+              profile.full_name,
+              `${newCount}-Day Milestone`,
+              `You've made ${newCount} contributions! Amazing consistency!`
+            );
+          }
         }
       } catch (smsErr) {
         console.error('Contribution SMS failed:', smsErr);
