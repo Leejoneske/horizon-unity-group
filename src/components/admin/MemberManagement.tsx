@@ -125,26 +125,22 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
       });
 
       // Send SMS notification for balance adjustment
-      try {
-        if (selectedMember.phone_number) {
-          await sendBalanceAdjustmentSMS(selectedMember.phone_number, amount, adjustmentType, selectedMember.full_name);
-        }
-      } catch (smsErr) {
-        console.error('Balance adjustment SMS failed:', smsErr);
+      if (selectedMember.phone_number) {
+        sendBalanceAdjustmentSMS(selectedMember.phone_number, amount, adjustmentType, selectedMember.full_name)
+          .then(ok => console.log('Balance adjustment SMS sent:', ok))
+          .catch(err => console.error('Balance adjustment SMS failed:', err));
+      } else {
+        console.warn('No phone number for member, skipping SMS');
       }
 
       // Create in-app notification
-      try {
-        const action = adjustmentType === 'add' ? 'added to' : 'deducted from';
-        await supabase.from('admin_messages').insert({
-          user_id: selectedMember.user_id,
-          admin_id: adminId,
-          message: `KES ${amount.toLocaleString()} has been ${action} your balance.${adjustmentReason ? ` Reason: ${adjustmentReason}` : ''}`,
-          message_type: 'info',
-        });
-      } catch (notifErr) {
-        console.error('In-app notification failed:', notifErr);
-      }
+      const { error: notifError } = await supabase.from('admin_messages').insert({
+        user_id: selectedMember.user_id,
+        admin_id: adminId,
+        message: `KES ${amount.toLocaleString()} has been ${adjustmentType === 'add' ? 'added to' : 'deducted from'} your balance.${adjustmentReason ? ` Reason: ${adjustmentReason}` : ''}`,
+        message_type: 'info',
+      });
+      if (notifError) console.error('In-app notification insert failed:', notifError);
       
       setIsAdjustDialogOpen(false);
       setAdjustmentAmount('');
