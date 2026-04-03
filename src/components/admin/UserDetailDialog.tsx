@@ -123,25 +123,20 @@ export default function UserDetailDialog({ member, isOpen, onClose, adminId, onR
       });
 
       // Send SMS notification
-      try {
-        if (member.phone_number) {
-          await sendAdminContributionSMS(member.phone_number, member.full_name, amount, format(new Date(selectedDate), 'MMM d, yyyy'));
-        }
-      } catch (smsErr) {
-        console.error('Admin contribution SMS failed:', smsErr);
+      if (member.phone_number) {
+        sendAdminContributionSMS(member.phone_number, member.full_name, amount, format(new Date(selectedDate), 'MMM d, yyyy'))
+          .then(ok => console.log('Admin contribution SMS sent:', ok))
+          .catch(err => console.error('Admin contribution SMS failed:', err));
       }
 
       // Create in-app notification
-      try {
-        await supabase.from('admin_messages').insert({
-          user_id: member.user_id,
-          admin_id: adminId,
-          message: `A contribution of KES ${amount.toLocaleString()} has been recorded on your behalf for ${format(new Date(selectedDate), 'MMM d, yyyy')}.`,
-          message_type: 'info',
-        });
-      } catch (notifErr) {
-        console.error('In-app notification failed:', notifErr);
-      }
+      const { error: notifError } = await supabase.from('admin_messages').insert({
+        user_id: member.user_id,
+        admin_id: adminId,
+        message: `A contribution of KES ${amount.toLocaleString()} has been recorded on your behalf for ${format(new Date(selectedDate), 'MMM d, yyyy')}.`,
+        message_type: 'info',
+      });
+      if (notifError) console.error('Admin contribution notification failed:', notifError);
 
       setSelectedDate('');
       fetchContributions();

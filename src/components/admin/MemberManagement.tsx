@@ -181,25 +181,20 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
       });
 
       // Send SMS about target change
-      try {
-        if (selectedMember.phone_number) {
-          await sendTargetChangeSMS(selectedMember.phone_number, selectedMember.full_name, amount);
-        }
-      } catch (smsErr) {
-        console.error('Target change SMS failed:', smsErr);
+      if (selectedMember.phone_number) {
+        sendTargetChangeSMS(selectedMember.phone_number, selectedMember.full_name, amount)
+          .then(ok => console.log('Target change SMS sent:', ok))
+          .catch(err => console.error('Target change SMS failed:', err));
       }
 
       // Create in-app notification for target change
-      try {
-        await supabase.from('admin_messages').insert({
-          user_id: selectedMember.user_id,
-          admin_id: adminId,
-          message: `Your daily contribution target has been updated to KES ${amount.toLocaleString()}.`,
-          message_type: 'info',
-        });
-      } catch (notifErr) {
-        console.error('In-app notification failed:', notifErr);
-      }
+      const { error: notifError } = await supabase.from('admin_messages').insert({
+        user_id: selectedMember.user_id,
+        admin_id: adminId,
+        message: `Your daily contribution target has been updated to KES ${amount.toLocaleString()}.`,
+        message_type: 'info',
+      });
+      if (notifError) console.error('Target change notification failed:', notifError);
       
       setIsContribDialogOpen(false);
       setNewDailyAmount('');

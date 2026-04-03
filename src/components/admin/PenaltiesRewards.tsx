@@ -53,31 +53,26 @@ export default function PenaltiesRewards({ member, adminId, onRefresh }: Penalti
       toast({ title: 'Success', description: `${type === 'penalty' ? 'Penalty' : 'Reward'} applied` });
 
       // Send SMS notification
-      try {
-        if (member.phone_number) {
-          await sendBalanceAdjustmentSMS(
-            member.phone_number,
-            parsedAmount,
-            type === 'penalty' ? 'deduct' : 'add',
-            member.full_name
-          );
-        }
-      } catch (smsErr) {
-        console.error('Penalty/reward SMS failed:', smsErr);
+      if (member.phone_number) {
+        sendBalanceAdjustmentSMS(
+          member.phone_number,
+          parsedAmount,
+          type === 'penalty' ? 'deduct' : 'add',
+          member.full_name
+        )
+          .then(ok => console.log('Penalty/reward SMS sent:', ok))
+          .catch(err => console.error('Penalty/reward SMS failed:', err));
       }
 
       // Create in-app notification
-      try {
-        const action = type === 'penalty' ? 'deducted from' : 'added to';
-        await supabase.from('admin_messages').insert({
-          user_id: member.user_id,
-          admin_id: adminId,
-          message: `KES ${parsedAmount.toLocaleString()} has been ${action} your balance as a ${type}. Reason: ${reason}`,
-          message_type: type === 'penalty' ? 'warning' : 'info',
-        });
-      } catch (notifErr) {
-        console.error('In-app notification failed:', notifErr);
-      }
+      const action = type === 'penalty' ? 'deducted from' : 'added to';
+      const { error: notifError } = await supabase.from('admin_messages').insert({
+        user_id: member.user_id,
+        admin_id: adminId,
+        message: `KES ${parsedAmount.toLocaleString()} has been ${action} your balance as a ${type}. Reason: ${reason}`,
+        message_type: type === 'penalty' ? 'warning' : 'info',
+      });
+      if (notifError) console.error('Penalty/reward notification failed:', notifError);
 
       setAmount('');
       setReason('');
