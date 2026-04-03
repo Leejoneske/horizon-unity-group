@@ -4,6 +4,7 @@ import { X, Calendar, Clock, Key, Plus, Settings, AlertCircle, CheckCircle2, Tra
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { sendAdminContributionSMS } from '@/lib/sms-reminders';
 import { format, parseISO, isSameDay } from 'date-fns';
 
 interface Member {
