@@ -66,6 +66,19 @@ export default function PenaltiesRewards({ member, adminId, onRefresh }: Penalti
         console.error('Penalty/reward SMS failed:', smsErr);
       }
 
+      // Create in-app notification
+      try {
+        const action = type === 'penalty' ? 'deducted from' : 'added to';
+        await supabase.from('admin_messages').insert({
+          user_id: member.user_id,
+          admin_id: adminId,
+          message: `KES ${parsedAmount.toLocaleString()} has been ${action} your balance as a ${type}. Reason: ${reason}`,
+          message_type: type === 'penalty' ? 'warning' : 'info',
+        });
+      } catch (notifErr) {
+        console.error('In-app notification failed:', notifErr);
+      }
+
       setAmount('');
       setReason('');
       onRefresh();
