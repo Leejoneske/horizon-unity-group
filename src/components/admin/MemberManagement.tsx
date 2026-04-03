@@ -132,6 +132,19 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
       } catch (smsErr) {
         console.error('Balance adjustment SMS failed:', smsErr);
       }
+
+      // Create in-app notification
+      try {
+        const action = adjustmentType === 'add' ? 'added to' : 'deducted from';
+        await supabase.from('admin_messages').insert({
+          user_id: selectedMember.user_id,
+          admin_id: adminId,
+          message: `KES ${amount.toLocaleString()} has been ${action} your balance.${adjustmentReason ? ` Reason: ${adjustmentReason}` : ''}`,
+          message_type: 'info',
+        });
+      } catch (notifErr) {
+        console.error('In-app notification failed:', notifErr);
+      }
       
       setIsAdjustDialogOpen(false);
       setAdjustmentAmount('');
