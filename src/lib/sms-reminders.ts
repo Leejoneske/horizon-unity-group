@@ -37,7 +37,7 @@ export const sendAdminNotificationSMS = async (
   userName: string
 ): Promise<boolean> => {
   try {
-    const message = `Hello ${userName}, you have a message from Horizon Unit Admin: ${messageText}`;
+    const message = `Hi ${userName}, ${messageText}`;
     return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send admin notification SMS:', error);
