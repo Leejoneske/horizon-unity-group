@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { logAdminAction } from '@/lib/audit-log';
+import { createAdminMessage } from '@/lib/admin-notifications';
+import { sendAdminContributionSMS } from '@/lib/sms-reminders';
 import { Calendar, Clock, Key, Plus, Trash2, ChevronLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,7 +64,6 @@ export default function MemberDetailPage() {
     try {
       setIsLoading(true);
 
-      // Fetch profile and active cycle in parallel
       const [profileRes, cycleRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('user_id', userId).single(),
         supabase.from('savings_cycles').select('*').eq('status', 'active').single()
@@ -71,7 +73,6 @@ export default function MemberDetailPage() {
       const activeCycleData = cycleRes.data;
 
       if (profileData) {
-        // Fetch contributions scoped to active cycle
         let contribQuery = supabase
           .from('contributions')
           .select('*')
@@ -88,7 +89,6 @@ export default function MemberDetailPage() {
 
         const totalContribs = contribData ? contribData.reduce((sum, c) => sum + Number(c.amount), 0) : 0;
 
-        // Calculate missed days based on cycle
         let missedDays = 0;
         if (activeCycleData) {
           const today = new Date();
@@ -134,7 +134,7 @@ export default function MemberDetailPage() {
   };
 
   const handleAddContributionForDate = async () => {
-    if (!selectedDate || !member) {
+    if (!selectedDate || !member || !user) {
       toast({
         title: 'Error',
         description: 'Please select a date',
@@ -156,11 +156,14 @@ export default function MemberDetailPage() {
         return;
       }
 
+      const amount = Number(contributionAmount) || member.daily_contribution_amount;
+      const formattedDate = format(new Date(selectedDate), 'MMM d, yyyy');
+
       const { error } = await supabase
         .from('contributions')
         .insert({
           user_id: member.user_id,
-          amount: Number(contributionAmount),
+          amount,
           contribution_date: selectedDate,
           status: 'completed',
           notes: 'Added by admin'
@@ -168,9 +171,29 @@ export default function MemberDetailPage() {
 
       if (error) throw error;
 
+      const notificationResult = await createAdminMessage({
+        userId: member.user_id,
+        adminId: user.id,
+        message: `A contribution of KES ${amount.toLocaleString()} has been recorded on your behalf for ${formattedDate}.`,
+      });
+
+      const smsSent = member.phone_number
+        ? await sendAdminContributionSMS(member.phone_number, member.full_name, amount, formattedDate)
+        : false;
+
+      await logAdminAction(
+        user.id,
+        'admin_add_contribution',
+        'contribution',
+        member.user_id,
+        `Added KES ${amount.toLocaleString()} contribution for ${member.full_name} on ${formattedDate}`
+      );
+
       toast({
-        title: 'Success',
-        description: `Contribution added for ${format(new Date(selectedDate), 'MMM d, yyyy')}`
+        title: notificationResult.success && (!member.phone_number || smsSent) ? 'Success' : 'Partially completed',
+        description: notificationResult.success && (!member.phone_number || smsSent)
+          ? `Contribution of KES ${amount.toLocaleString()} added for ${formattedDate} and notification sent.`
+          : `Contribution of KES ${amount.toLocaleString()} added for ${formattedDate}, but ${!notificationResult.success ? 'in-app notification' : 'SMS'} needs attention.`
       });
 
       setSelectedDate('');
@@ -272,16 +295,14 @@ export default function MemberDetailPage() {
     );
   }
 
-  // Cycle-scoped balance: only contributions in this cycle
   const effectiveBalance = member.total_contributions;
   const lastContribution = contributions.length > 0 ? contributions[0] : null;
-  const lastLoginText = lastContribution 
+  const lastLoginText = lastContribution
     ? format(parseISO(lastContribution.contribution_date), 'MMM d, yyyy')
     : 'No activity yet';
 
   return (
     <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
-      {/* Header */}
       <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-4">
           <button
@@ -297,9 +318,7 @@ export default function MemberDetailPage() {
         </div>
       </div>
 
-      {/* Main Content - Scrollable */}
       <div className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
-        {/* Quick Stats */}
         <div className="px-4 pt-6 pb-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4 border border-green-200">
@@ -317,7 +336,6 @@ export default function MemberDetailPage() {
           </div>
         </div>
 
-        {/* Status Section */}
         <div className="px-4 pb-4">
           <h3 className="text-sm font-semibold text-gray-600 mb-3">Activity</h3>
           <div className="space-y-2">
@@ -334,7 +352,6 @@ export default function MemberDetailPage() {
           </div>
         </div>
 
-        {/* Add Contribution */}
         <div className="px-4 pb-4 border-b border-gray-100">
           <h3 className="text-sm font-semibold text-gray-600 mb-3">Add Contribution</h3>
           <div className="space-y-3">
@@ -369,7 +386,6 @@ export default function MemberDetailPage() {
           </div>
         </div>
 
-        {/* Recent Contributions */}
         <div className="px-4 py-4 border-b border-gray-100">
           <h3 className="text-sm font-semibold text-gray-600 mb-3">Recent Contributions</h3>
           {contributions.length === 0 ? (
@@ -400,7 +416,6 @@ export default function MemberDetailPage() {
           )}
         </div>
 
-        {/* Password Reset */}
         <div className="px-4 py-4">
           <h3 className="text-sm font-semibold text-gray-600 mb-3">Reset Password</h3>
           <div className="space-y-3">

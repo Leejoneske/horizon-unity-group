@@ -4,6 +4,7 @@ import { X, Calendar, Clock, Key, Plus, Settings, AlertCircle, CheckCircle2, Tra
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { createAdminMessage } from '@/lib/admin-notifications';
 import { sendAdminContributionSMS } from '@/lib/sms-reminders';
 import { format, parseISO, isSameDay } from 'date-fns';
 
@@ -104,6 +105,7 @@ export default function UserDetailDialog({ member, isOpen, onClose, adminId, onR
       }
 
       const amount = parseFloat(contributionAmount) || member.daily_contribution_amount;
+      const formattedDate = format(new Date(selectedDate), 'MMM d, yyyy');
       
       const { error } = await supabase
         .from('contributions')
@@ -117,26 +119,22 @@ export default function UserDetailDialog({ member, isOpen, onClose, adminId, onR
 
       if (error) throw error;
 
+      const notificationResult = await createAdminMessage({
+        userId: member.user_id,
+        adminId,
+        message: `A contribution of KES ${amount.toLocaleString()} has been recorded on your behalf for ${formattedDate}.`,
+      });
+
+      const smsSent = member.phone_number
+        ? await sendAdminContributionSMS(member.phone_number, member.full_name, amount, formattedDate)
+        : false;
+
       toast({
-        title: 'Success',
-        description: `Contribution of KES ${amount.toLocaleString()} added for ${format(new Date(selectedDate), 'MMM d, yyyy')}`
+        title: notificationResult.success && (!member.phone_number || smsSent) ? 'Success' : 'Partially completed',
+        description: notificationResult.success && (!member.phone_number || smsSent)
+          ? `Contribution of KES ${amount.toLocaleString()} added for ${formattedDate} and notification sent.`
+          : `Contribution of KES ${amount.toLocaleString()} added for ${formattedDate}, but ${!notificationResult.success ? 'in-app notification' : 'SMS'} needs attention.`
       });
-
-      // Send SMS notification
-      if (member.phone_number) {
-        sendAdminContributionSMS(member.phone_number, member.full_name, amount, format(new Date(selectedDate), 'MMM d, yyyy'))
-          .then(ok => console.log('Admin contribution SMS sent:', ok))
-          .catch(err => console.error('Admin contribution SMS failed:', err));
-      }
-
-      // Create in-app notification
-      const { error: notifError } = await supabase.from('admin_messages').insert({
-        user_id: member.user_id,
-        admin_id: adminId,
-        message: `A contribution of KES ${amount.toLocaleString()} has been recorded on your behalf for ${format(new Date(selectedDate), 'MMM d, yyyy')}.`,
-        message_type: 'info',
-      });
-      if (notifError) console.error('Admin contribution notification failed:', notifError);
 
       setSelectedDate('');
       fetchContributions();

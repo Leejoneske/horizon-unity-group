@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Bell, X, MessageSquare, AlertCircle, Info, Check } from 'lucide-react';
-import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import { Bell, X, MessageSquare, AlertCircle, Info } from 'lucide-react';
+import { parseISO, formatDistanceToNow } from 'date-fns';
 
 interface Notification {
   id: string;
@@ -30,7 +30,7 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
-      
+
       if (data) {
         setNotifications(data);
         onUnreadCountChange?.(data.filter(n => !n.is_read).length);
@@ -45,7 +45,6 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
   useEffect(() => {
     fetchNotifications();
 
-    // Subscribe to realtime updates
     const channel = supabase
       .channel(`notifications-${userId}`)
       .on(
@@ -80,7 +79,7 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
   const markAllAsRead = async () => {
     const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
     if (unreadIds.length === 0) return;
-    
+
     try {
       for (const id of unreadIds) {
         await supabase.from('admin_messages').update({ is_read: true }).eq('id', id);
@@ -97,18 +96,19 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
   const getIcon = (type: string) => {
     if (type === 'warning') return <AlertCircle className="w-5 h-5 text-amber-500" />;
     if (type === 'announcement') return <MessageSquare className="w-5 h-5 text-blue-500" />;
+    if (type === 'reminder') return <Bell className="w-5 h-5 text-indigo-500" />;
     return <Info className="w-5 h-5 text-gray-500" />;
   };
 
   const getIconBg = (type: string) => {
     if (type === 'warning') return 'bg-amber-100';
     if (type === 'announcement') return 'bg-blue-100';
+    if (type === 'reminder') return 'bg-indigo-100';
     return 'bg-gray-100';
   };
 
   return (
     <>
-      {/* Bell Button */}
       <button
         onClick={() => { setIsOpen(true); fetchNotifications(); }}
         className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition relative"
@@ -121,15 +121,11 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
         )}
       </button>
 
-      {/* Notification Panel */}
       {isOpen && (
         <div className="fixed inset-0 z-50">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setIsOpen(false)} />
-          
-          {/* Panel - slides from right */}
+
           <div className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-            {/* Header */}
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Notifications</h2>
@@ -155,7 +151,6 @@ export default function NotificationCenter({ userId, onUnreadCountChange }: Noti
               </div>
             </div>
 
-            {/* Notifications List */}
             <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className="p-8 text-center text-gray-400 animate-pulse">Loading...</div>

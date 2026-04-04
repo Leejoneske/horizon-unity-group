@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { TrendingDown, TrendingUp, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createAdminMessage } from '@/lib/admin-notifications';
 import { sendBalanceAdjustmentSMS } from '@/lib/sms-reminders';
 import { Input } from '@/components/ui/input';
 
@@ -28,7 +29,6 @@ export default function PenaltiesRewards({ member, adminId, onRefresh }: Penalti
       setIsLoading(true);
       const parsedAmount = parseFloat(amount);
 
-      // Use balance_adjustments table
       const { error: adjustError } = await supabase
         .from('balance_adjustments')
         .insert({
@@ -41,7 +41,6 @@ export default function PenaltiesRewards({ member, adminId, onRefresh }: Penalti
 
       if (adjustError) throw adjustError;
 
-      // Update profile balance_adjustment
       const newAdjustment = (member.balance_adjustment || 0) + (type === 'penalty' ? -parsedAmount : parsedAmount);
       const { error: profileError } = await supabase
         .from('profiles')
@@ -50,29 +49,29 @@ export default function PenaltiesRewards({ member, adminId, onRefresh }: Penalti
 
       if (profileError) throw profileError;
 
-      toast({ title: 'Success', description: `${type === 'penalty' ? 'Penalty' : 'Reward'} applied` });
-
-      // Send SMS notification
-      if (member.phone_number) {
-        sendBalanceAdjustmentSMS(
-          member.phone_number,
-          parsedAmount,
-          type === 'penalty' ? 'deduct' : 'add',
-          member.full_name
-        )
-          .then(ok => console.log('Penalty/reward SMS sent:', ok))
-          .catch(err => console.error('Penalty/reward SMS failed:', err));
-      }
-
-      // Create in-app notification
       const action = type === 'penalty' ? 'deducted from' : 'added to';
-      const { error: notifError } = await supabase.from('admin_messages').insert({
-        user_id: member.user_id,
-        admin_id: adminId,
+      const notificationResult = await createAdminMessage({
+        userId: member.user_id,
+        adminId,
         message: `KES ${parsedAmount.toLocaleString()} has been ${action} your balance as a ${type}. Reason: ${reason}`,
-        message_type: type === 'penalty' ? 'warning' : 'info',
+        messageType: type === 'penalty' ? 'warning' : 'info',
       });
-      if (notifError) console.error('Penalty/reward notification failed:', notifError);
+
+      const smsSent = member.phone_number
+        ? await sendBalanceAdjustmentSMS(
+            member.phone_number,
+            parsedAmount,
+            type === 'penalty' ? 'deduct' : 'add',
+            member.full_name
+          )
+        : false;
+
+      toast({
+        title: notificationResult.success && (!member.phone_number || smsSent) ? 'Success' : 'Applied with issues',
+        description: notificationResult.success && (!member.phone_number || smsSent)
+          ? `${type === 'penalty' ? 'Penalty' : 'Reward'} applied and member notified.`
+          : `${type === 'penalty' ? 'Penalty' : 'Reward'} applied, but ${!notificationResult.success ? 'in-app notification' : 'SMS'} needs attention.`,
+      });
 
       setAmount('');
       setReason('');
