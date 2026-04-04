@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { createAdminMessage } from '@/lib/admin-notifications';
 import { sendBalanceAdjustmentSMS, sendTargetChangeSMS } from '@/lib/sms-reminders';
 import { logAdminAction } from '@/lib/audit-log';
 import { Eye, EyeOff, Plus, Minus, Settings, X, Info } from 'lucide-react';
@@ -119,28 +120,22 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
       await logAdminAction(adminId, `balance_${adjustmentType}`, 'balance', selectedMember.user_id,
         `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}${adjustmentReason ? ` — ${adjustmentReason}` : ''}`);
 
-      toast({
-        title: 'Balance adjusted',
-        description: `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}'s balance`,
-      });
-
-      // Send SMS notification for balance adjustment
-      if (selectedMember.phone_number) {
-        sendBalanceAdjustmentSMS(selectedMember.phone_number, amount, adjustmentType, selectedMember.full_name)
-          .then(ok => console.log('Balance adjustment SMS sent:', ok))
-          .catch(err => console.error('Balance adjustment SMS failed:', err));
-      } else {
-        console.warn('No phone number for member, skipping SMS');
-      }
-
-      // Create in-app notification
-      const { error: notifError } = await supabase.from('admin_messages').insert({
-        user_id: selectedMember.user_id,
-        admin_id: adminId,
+      const notificationResult = await createAdminMessage({
+        userId: selectedMember.user_id,
+        adminId,
         message: `KES ${amount.toLocaleString()} has been ${adjustmentType === 'add' ? 'added to' : 'deducted from'} your balance.${adjustmentReason ? ` Reason: ${adjustmentReason}` : ''}`,
-        message_type: 'info',
       });
-      if (notifError) console.error('In-app notification insert failed:', notifError);
+
+      const smsSent = selectedMember.phone_number
+        ? await sendBalanceAdjustmentSMS(selectedMember.phone_number, amount, adjustmentType, selectedMember.full_name)
+        : false;
+
+      toast({
+        title: notificationResult.success && (!selectedMember.phone_number || smsSent) ? 'Balance adjusted' : 'Balance adjusted with issues',
+        description: notificationResult.success && (!selectedMember.phone_number || smsSent)
+          ? `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}'s balance and sent the notification.`
+          : `${adjustmentType === 'add' ? 'Added' : 'Deducted'} KES ${amount.toLocaleString()} ${adjustmentType === 'add' ? 'to' : 'from'} ${selectedMember.full_name}'s balance, but ${!notificationResult.success ? 'in-app notification' : 'SMS'} needs attention.`,
+      });
       
       setIsAdjustDialogOpen(false);
       setAdjustmentAmount('');
@@ -175,26 +170,22 @@ export default function MemberManagement({ members, onRefresh, adminId }: Member
       await logAdminAction(adminId, 'change_contribution_target', 'contribution', selectedMember.user_id,
         `Changed ${selectedMember.full_name}'s daily target to KES ${amount.toLocaleString()}`);
 
-      toast({
-        title: 'Contribution amount updated',
-        description: `${selectedMember.full_name}'s daily contribution is now KES ${amount.toLocaleString()}`,
-      });
-
-      // Send SMS about target change
-      if (selectedMember.phone_number) {
-        sendTargetChangeSMS(selectedMember.phone_number, selectedMember.full_name, amount)
-          .then(ok => console.log('Target change SMS sent:', ok))
-          .catch(err => console.error('Target change SMS failed:', err));
-      }
-
-      // Create in-app notification for target change
-      const { error: notifError } = await supabase.from('admin_messages').insert({
-        user_id: selectedMember.user_id,
-        admin_id: adminId,
+      const notificationResult = await createAdminMessage({
+        userId: selectedMember.user_id,
+        adminId,
         message: `Your daily contribution target has been updated to KES ${amount.toLocaleString()}.`,
-        message_type: 'info',
       });
-      if (notifError) console.error('Target change notification failed:', notifError);
+
+      const smsSent = selectedMember.phone_number
+        ? await sendTargetChangeSMS(selectedMember.phone_number, selectedMember.full_name, amount)
+        : false;
+
+      toast({
+        title: notificationResult.success && (!selectedMember.phone_number || smsSent) ? 'Contribution amount updated' : 'Updated with issues',
+        description: notificationResult.success && (!selectedMember.phone_number || smsSent)
+          ? `${selectedMember.full_name}'s daily contribution is now KES ${amount.toLocaleString()} and the notification was sent.`
+          : `${selectedMember.full_name}'s daily contribution is now KES ${amount.toLocaleString()}, but ${!notificationResult.success ? 'in-app notification' : 'SMS'} needs attention.`,
+      });
       
       setIsContribDialogOpen(false);
       setNewDailyAmount('');

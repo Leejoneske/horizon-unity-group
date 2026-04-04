@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
+import { createAdminMessage, createBulkAdminMessages } from '@/lib/admin-notifications';
 import { sendAdminNotificationSMS } from '@/lib/sms-reminders';
 import { Send, Trash2, Edit2, Plus, AlertCircle, Info, Bell, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -74,7 +75,7 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedUserId) return;
-    
+
     setIsSending(true);
     try {
       if (editingMessage) {
@@ -86,14 +87,16 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
         if (error) throw error;
         toast({ title: 'Message updated', description: 'Your message has been updated successfully.' });
       } else {
-        // First, insert the message to the database
-        const { error: insertError } = await supabase
-          .from('admin_messages')
-          .insert({ message: newMessage, message_type: messageType, user_id: selectedUserId, admin_id: adminId });
+        const notificationResult = await createAdminMessage({
+          userId: selectedUserId,
+          adminId,
+          message: newMessage,
+          messageType,
+        });
 
-        if (insertError) throw insertError;
+        if (!notificationResult.success) throw notificationResult.error;
 
-        // Message saved successfully - now try to send SMS (don't fail if SMS fails)
+        let smsSent = false;
         try {
           const { data: profileData } = await supabase
             .from('profiles')
@@ -102,13 +105,18 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
             .maybeSingle();
 
           if (profileData?.phone_number) {
-            await sendAdminNotificationSMS(profileData.phone_number, newMessage, profileData.full_name);
+            smsSent = await sendAdminNotificationSMS(profileData.phone_number, newMessage, profileData.full_name);
           }
         } catch (smsErr) {
           console.error('SMS notification failed (message was still saved):', smsErr);
         }
 
-        toast({ title: 'Message sent', description: 'Your message has been sent successfully.' });
+        toast({
+          title: smsSent ? 'Message sent' : 'Message saved',
+          description: smsSent
+            ? 'Your message has been sent successfully.'
+            : 'Your message was saved in the app, but SMS was not confirmed.',
+        });
       }
 
       setIsDialogOpen(false);
@@ -147,20 +155,21 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
 
   const handleBroadcast = async () => {
     if (!newMessage.trim()) return;
-    
+
     setIsSending(true);
     try {
-      const messagesToInsert = members.map(member => ({
-        message: newMessage,
-        message_type: messageType,
-        user_id: member.user_id,
-        admin_id: adminId,
-      }));
+      const notifications = await createBulkAdminMessages(
+        members.map((member) => ({
+          userId: member.user_id,
+          adminId,
+          message: newMessage,
+          messageType,
+        }))
+      );
 
-      const { error } = await supabase.from('admin_messages').insert(messagesToInsert);
-      if (error) throw error;
+      if (!notifications.success) throw notifications.error;
 
-      // Send SMS to all members with phone numbers
+      let smsSentCount = 0;
       try {
         const { data: profiles } = await supabase
           .from('profiles')
@@ -168,16 +177,21 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
           .in('user_id', members.map(m => m.user_id));
 
         if (profiles) {
-          const smsPromises = profiles
-            .filter(p => p.phone_number)
-            .map(p => sendAdminNotificationSMS(p.phone_number!, newMessage, p.full_name));
-          await Promise.allSettled(smsPromises);
+          const results = await Promise.allSettled(
+            profiles
+              .filter(p => p.phone_number)
+              .map(p => sendAdminNotificationSMS(p.phone_number!, newMessage, p.full_name))
+          );
+          smsSentCount = results.filter((result) => result.status === 'fulfilled' && result.value).length;
         }
       } catch (smsErr) {
         console.error('Broadcast SMS failed (messages were still saved):', smsErr);
       }
 
-      toast({ title: 'Broadcast sent', description: `Message sent to ${members.length} members (in-app + SMS).` });
+      toast({
+        title: 'Broadcast sent',
+        description: `Message saved for ${members.length} members. Confirmed SMS deliveries: ${smsSentCount}.`,
+      });
       setIsDialogOpen(false);
       setNewMessage('');
       setMessageType('info');
@@ -209,10 +223,9 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
 
   return (
     <>
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-600">Messages</h3>
-        <button 
+        <button
           onClick={() => setIsDialogOpen(true)}
           className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full text-xs font-semibold text-white hover:from-blue-600 hover:to-blue-700 transition active:scale-95 flex items-center gap-1 shadow-lg shadow-blue-500/30"
         >
@@ -260,13 +273,13 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
                   <p className="text-xs text-gray-400 mt-1">{format(parseISO(message.created_at), 'MMM d, HH:mm')}</p>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <button 
+                  <button
                     onClick={() => handleEditMessage(message)}
                     className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:bg-gray-50 transition active:scale-95"
                   >
                     <Edit2 className="w-3.5 h-3.5 text-gray-600" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDeleteMessage(message.id)}
                     className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm hover:bg-red-50 transition active:scale-95"
                   >
@@ -279,7 +292,6 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
         </div>
       )}
 
-      {/* New/Edit Message Modal */}
       {isDialogOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -288,7 +300,7 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
               <h3 className="font-bold text-xl text-gray-900">
                 {editingMessage ? 'Edit Message' : 'New Message'}
               </h3>
-              <button 
+              <button
                 onClick={() => {
                   setIsDialogOpen(false);
                   setEditingMessage(null);
@@ -300,7 +312,7 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
                 <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>
-            
+
             <div className="space-y-4 mb-6">
               <div className="space-y-2">
                 <Label htmlFor="recipient" className="text-sm font-medium text-gray-700">Recipient</Label>
@@ -319,7 +331,7 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type" className="text-sm font-medium text-gray-700">Message Type</Label>
-                <Select value={messageType} onValueChange={(v) => setMessageType(v as any)}>
+                <Select value={messageType} onValueChange={(v) => setMessageType(v as 'info' | 'warning' | 'announcement')}>
                   <SelectTrigger className="rounded-xl border-gray-200">
                     <SelectValue />
                   </SelectTrigger>
@@ -342,9 +354,9 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
                 />
               </div>
             </div>
-            
+
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={handleSendMessage}
                 disabled={isSending || !newMessage.trim() || !selectedUserId}
                 className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full font-semibold text-white hover:from-blue-600 hover:to-blue-700 transition shadow-lg shadow-blue-500/30 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
@@ -353,12 +365,12 @@ export default function MessageCenter({ adminId, members }: MessageCenterProps) 
                 {isSending ? 'Sending...' : (editingMessage ? 'Update' : 'Send')}
               </button>
               {!editingMessage && (
-                <button 
+                <button
                   onClick={handleBroadcast}
                   disabled={isSending || !newMessage.trim()}
                   className="w-full py-4 px-6 bg-gray-100 rounded-full font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95 disabled:opacity-50"
                 >
-                  Broadcast to All ({members.length})
+                  {isSending ? 'Broadcasting...' : 'Send to All Members'}
                 </button>
               )}
             </div>

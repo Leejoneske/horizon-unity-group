@@ -3,7 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { logAdminAction } from '@/lib/audit-log';
-import { Input } from '@/components/ui/input';
+import { createBulkAdminMessages } from '@/lib/admin-notifications';
+import { sendBulkSMS } from '@/lib/sms-reminders';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AnnouncementsProps {
   adminId: string;
@@ -24,30 +26,48 @@ export default function AnnouncementsManager({ adminId, onRefresh }: Announcemen
     try {
       setIsLoading(true);
 
-      // Get all member profiles
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id')
+        .select('user_id, full_name, phone_number')
         .neq('user_id', adminId);
+
+      if (profilesError) throw profilesError;
 
       if (!profiles || profiles.length === 0) {
         toast({ title: 'No members', description: 'No members to send to', variant: 'destructive' });
         return;
       }
 
-      // Insert a message for each member using admin_messages table
-      const messages = profiles.map(p => ({
-        user_id: p.user_id,
-        admin_id: adminId,
-        message: content,
-        message_type: 'announcement',
-      }));
+      const notificationResult = await createBulkAdminMessages(
+        profiles.map((profile) => ({
+          userId: profile.user_id,
+          adminId,
+          message: content,
+          messageType: 'announcement',
+        }))
+      );
 
-      const { error } = await supabase.from('admin_messages').insert(messages);
-      if (error) throw error;
+      if (!notificationResult.success) throw notificationResult.error;
+
+      const { sent, failed } = await sendBulkSMS(
+        profiles
+          .filter((profile) => profile.phone_number)
+          .map((profile) => ({
+            phoneNumber: profile.phone_number!,
+            userName: profile.full_name,
+          })),
+        (userName) => `Hi ${userName}, ${content}`
+      );
 
       await logAdminAction(adminId, 'send_announcement', 'announcement', undefined, `Sent to ${profiles.length} members: "${content.substring(0, 80)}"`);
-      toast({ title: 'Success', description: `Announcement sent to ${profiles.length} members` });
+
+      toast({
+        title: failed === 0 ? 'Success' : 'Sent with issues',
+        description: failed === 0
+          ? `Announcement sent to ${profiles.length} members.`
+          : `Announcement saved for ${profiles.length} members. SMS sent: ${sent}, failed: ${failed}.`,
+      });
+
       setContent('');
       onRefresh();
     } catch (error) {
@@ -64,7 +84,7 @@ export default function AnnouncementsManager({ adminId, onRefresh }: Announcemen
 
       <div className="px-4 pb-6 space-y-4">
         <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-          <textarea
+          <Textarea
             placeholder="Write your announcement..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -82,14 +102,13 @@ export default function AnnouncementsManager({ adminId, onRefresh }: Announcemen
           </button>
         </div>
 
-        {/* Quick Templates */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <h4 className="font-semibold text-blue-900 mb-3">Quick Templates</h4>
           <div className="space-y-2">
             {[
               { label: 'Reminder', text: 'Reminder: Today is the day to make your contribution. Keep your streak going!' },
               { label: 'Missed Day', text: 'You missed your contribution. Catch up tomorrow to maintain your streak!' },
-              { label: 'Milestone', text: 'Congratulations! You\'ve reached a milestone. Keep saving!' }
+              { label: 'Milestone', text: 'Congratulations! You've reached a milestone. Keep saving!' }
             ].map((template, i) => (
               <button
                 key={i}
