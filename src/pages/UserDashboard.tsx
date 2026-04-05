@@ -73,6 +73,7 @@ export default function UserDashboard() {
   const [pendingReference, setPendingReference] = useState<string | null>(null);
   const [pesapalIframeUrl, setPesapalIframeUrl] = useState<string | null>(null);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
