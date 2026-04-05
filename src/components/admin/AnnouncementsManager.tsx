@@ -108,7 +108,7 @@ export default function AnnouncementsManager({ adminId, onRefresh }: Announcemen
             {[
               { label: 'Reminder', text: 'Reminder: Today is the day to make your contribution. Keep your streak going!' },
               { label: 'Missed Day', text: 'You missed your contribution. Catch up tomorrow to maintain your streak!' },
-              { label: 'Milestone', text: 'Congratulations! You've reached a milestone. Keep saving!' }
+              { label: 'Milestone', text: "Congratulations! You've reached a milestone. Keep saving!" }
             ].map((template, i) => (
               <button
                 key={i}
