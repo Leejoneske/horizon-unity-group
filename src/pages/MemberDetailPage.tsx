@@ -166,7 +166,7 @@ export default function MemberDetailPage() {
           amount,
           contribution_date: selectedDate,
           status: 'completed',
-          notes: 'Added by admin'
+          notes: 'Added by Horizon Unit'
         });
 
       if (error) throw error;

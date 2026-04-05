@@ -173,7 +173,7 @@ export const sendTargetChangeSMS = async (
   newAmount: number
 ): Promise<boolean> => {
   try {
-    const message = `Hi ${userName}, your daily contribution target has been updated to KES ${newAmount.toLocaleString()} by admin. This applies to future contributions. 📝`;
+    const message = `Hi ${userName}, your daily contribution target has been updated to KES ${newAmount.toLocaleString()}. This applies to future contributions. 📝`;
     return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send target change SMS:', error);
