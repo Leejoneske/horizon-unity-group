@@ -114,7 +114,7 @@ export default function UserDetailDialog({ member, isOpen, onClose, adminId, onR
           amount: amount,
           contribution_date: selectedDate,
           status: 'completed',
-          notes: 'Admin added'
+          notes: 'Added by Horizon Unit'
         });
 
       if (error) throw error;

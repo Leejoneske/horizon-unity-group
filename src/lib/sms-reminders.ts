@@ -130,7 +130,7 @@ export const sendAdminContributionSMS = async (
   date: string
 ): Promise<boolean> => {
   try {
-    const message = `Hi ${userName}! Admin has recorded a KES ${amount.toLocaleString()} contribution on your behalf for ${date}. Check your dashboard for details. 📋`;
+    const message = `Hi ${userName}! We have recorded a KES ${amount.toLocaleString()} contribution on your behalf for ${date}. Check your dashboard for details. 📋`;
     return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send admin contribution SMS:', error);
@@ -173,7 +173,7 @@ export const sendTargetChangeSMS = async (
   newAmount: number
 ): Promise<boolean> => {
   try {
-    const message = `Hi ${userName}, your daily contribution target has been updated to KES ${newAmount.toLocaleString()} by admin. This applies to future contributions. 📝`;
+    const message = `Hi ${userName}, your daily contribution target has been updated to KES ${newAmount.toLocaleString()}. This applies to future contributions. 📝`;
     return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send target change SMS:', error);

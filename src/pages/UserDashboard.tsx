@@ -529,7 +529,7 @@ export default function UserDashboard() {
                     }
                   </p>
                   {!profile?.balance_visible && (
-                    <p className="text-xs text-gray-400 mt-1">Balance hidden by admin</p>
+                    <p className="text-xs text-gray-400 mt-1">Balance will be visible when the cycle ends</p>
                   )}
                 </div>
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-lg">
