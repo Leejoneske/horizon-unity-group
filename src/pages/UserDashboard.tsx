@@ -73,6 +73,7 @@ export default function UserDashboard() {
   const [pendingReference, setPendingReference] = useState<string | null>(null);
   const [pesapalIframeUrl, setPesapalIframeUrl] = useState<string | null>(null);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -95,6 +96,16 @@ export default function UserDashboard() {
         return;
       }
       fetchData();
+
+      // Show welcome banner for new users (created within the last 24 hours)
+      const createdAt = user.created_at ? new Date(user.created_at) : null;
+      if (createdAt) {
+        const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        const dismissed = localStorage.getItem(`welcome_dismissed_${user.id}`);
+        if (hoursSinceCreation < 24 && !dismissed) {
+          setShowWelcomeBanner(true);
+        }
+      }
     }
   }, [user, isAdmin, authLoading, navigate]);
 
@@ -512,6 +523,28 @@ export default function UserDashboard() {
                   <p className="font-semibold text-blue-900 text-sm">Verifying payment...</p>
                   <p className="text-xs text-blue-700">Waiting for M-Pesa confirmation</p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Welcome Banner for new users */}
+          {showWelcomeBanner && profile && (
+            <div className="px-4 pt-4">
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-5 relative">
+                <button
+                  onClick={() => {
+                    setShowWelcomeBanner(false);
+                    if (user) localStorage.setItem(`welcome_dismissed_${user.id}`, 'true');
+                  }}
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center hover:bg-emerald-200 transition"
+                >
+                  <X className="w-3.5 h-3.5 text-emerald-600" />
+                </button>
+                <p className="text-2xl mb-1">🎉</p>
+                <h3 className="font-bold text-emerald-900 text-lg">Welcome to Horizon Unit, {profile.full_name.split(' ')[0]}!</h3>
+                <p className="text-sm text-emerald-700 mt-1">
+                  Your account is all set. Start making daily contributions to grow your savings. We're glad to have you!
+                </p>
               </div>
             </div>
           )}
