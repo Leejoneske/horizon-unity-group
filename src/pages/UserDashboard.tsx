@@ -96,6 +96,16 @@ export default function UserDashboard() {
         return;
       }
       fetchData();
+
+      // Show welcome banner for new users (created within the last 24 hours)
+      const createdAt = user.created_at ? new Date(user.created_at) : null;
+      if (createdAt) {
+        const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        const dismissed = localStorage.getItem(`welcome_dismissed_${user.id}`);
+        if (hoursSinceCreation < 24 && !dismissed) {
+          setShowWelcomeBanner(true);
+        }
+      }
     }
   }, [user, isAdmin, authLoading, navigate]);
 
