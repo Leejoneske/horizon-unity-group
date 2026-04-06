@@ -194,87 +194,43 @@ export default function AdminDashboard() {
           {/* Action Buttons Grid */}
           <div className="px-4 pb-6">
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <button 
-                onClick={() => setActiveTab('members')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'members' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Users className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Members</span>
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('messages')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'messages' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <MessageSquare className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Messages</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('analytics')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'analytics' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <BarChart3 className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Analytics</span>
-              </button>
+              {[
+                { tab: 'members' as const, icon: Users, label: 'Members' },
+                { tab: 'messages' as const, icon: MessageSquare, label: 'Messages' },
+                { tab: 'analytics' as const, icon: BarChart3, label: 'Analytics' },
+              ].map(({ tab, icon: Icon, label }) => (
+                <button 
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                    activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Icon className="w-6 h-6" />
+                  <span className="text-xs font-semibold text-center">{label}</span>
+                </button>
+              ))}
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <button 
-                onClick={() => setActiveTab('search')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'search' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Search className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Search</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('announcements')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'announcements' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <SendHorizontal className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Announce</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('cycles')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'cycles' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <CalendarRange className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Cycles</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('activity')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'activity' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Activity className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Activity</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('settings')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'settings' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Settings className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Settings</span>
-              </button>
+              {[
+                { tab: 'search' as const, icon: Search, label: 'Search' },
+                { tab: 'announcements' as const, icon: SendHorizontal, label: 'Announce' },
+                { tab: 'cycles' as const, icon: CalendarRange, label: 'Cycles' },
+                { tab: 'activity' as const, icon: Activity, label: 'Activity' },
+                { tab: 'settings' as const, icon: Settings, label: 'Settings' },
+              ].map(({ tab, icon: Icon, label }) => (
+                <button 
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                    activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Icon className="w-6 h-6" />
+                  <span className="text-xs font-semibold text-center">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
