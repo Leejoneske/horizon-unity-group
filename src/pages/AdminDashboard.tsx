@@ -237,30 +237,30 @@ export default function AdminDashboard() {
           {/* Tab Content Based on Active Tab */}
           {activeTab === 'overview' && (
             <>
-              {/* Today Section - Recent Activity */}
+              {/* Recent Activity */}
               <div className="px-4 pb-4">
-                <h3 className="text-lg font-semibold text-gray-600 mb-4">Recent Activity</h3>
+                <h3 className="text-lg font-semibold text-muted-foreground mb-4">Recent Activity</h3>
                 
                 {recentContributions.length === 0 ? (
                   <div className="text-center py-12">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Activity feed</h3>
-                    <p className="text-gray-500 max-w-sm mx-auto leading-relaxed">
+                    <h3 className="text-xl font-bold text-foreground mb-2">Activity feed</h3>
+                    <p className="text-muted-foreground max-w-sm mx-auto leading-relaxed">
                       When members add contributions, they show up here.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {recentContributions.slice(0, 8).map((contribution) => (
-                      <div key={contribution.id} className="bg-gray-100 rounded-2xl p-4">
+                      <div key={contribution.id} className="bg-secondary rounded-2xl p-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-white font-bold">
+                          <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
                             {contribution.profiles?.full_name?.substring(0, 2).toUpperCase() || '??'}
                           </div>
                           <div className="flex-1">
-                            <p className="font-semibold text-gray-900">{contribution.profiles?.full_name || 'Unknown'}</p>
-                            <p className="text-sm text-gray-500">{format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}</p>
+                            <p className="font-semibold text-foreground">{contribution.profiles?.full_name || 'Unknown'}</p>
+                            <p className="text-sm text-muted-foreground">{format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}</p>
                           </div>
-                          <span className="font-bold text-green-600">+KES {Number(contribution.amount).toLocaleString()}</span>
+                          <span className="font-bold text-primary">+KES {Number(contribution.amount).toLocaleString()}</span>
                         </div>
                       </div>
                     ))}
@@ -271,10 +271,10 @@ export default function AdminDashboard() {
               {/* Member Summary */}
               <div className="px-4 pb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-600">Members</h3>
+                  <h3 className="text-lg font-semibold text-muted-foreground">Members</h3>
                   <button 
                     onClick={() => setActiveTab('members')}
-                    className="text-sm font-medium text-blue-600 flex items-center gap-1 hover:text-blue-700"
+                    className="text-sm font-medium text-primary flex items-center gap-1 hover:underline"
                   >
                     View all <ChevronRight className="w-4 h-4" />
                   </button>
@@ -282,16 +282,16 @@ export default function AdminDashboard() {
                 
                 <div className="space-y-3">
                   {members.slice(0, 4).map((member) => (
-                    <div key={member.id} className="bg-gray-100 rounded-2xl p-4">
+                    <div key={member.id} className="bg-secondary rounded-2xl p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold">
+                        <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
                           {member.full_name.substring(0, 2).toUpperCase()}
                         </div>
                         <div className="flex-1">
-                          <p className="font-semibold text-gray-900">{member.full_name}</p>
-                          <p className="text-sm text-gray-500">{member.contribution_count} contributions</p>
+                          <p className="font-semibold text-foreground">{member.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{member.contribution_count} contributions</p>
                         </div>
-                        <span className="font-bold text-gray-900">KES {member.total_contributions.toLocaleString()}</span>
+                        <span className="font-bold text-foreground">KES {member.total_contributions.toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
