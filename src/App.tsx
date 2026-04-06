@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import UserLogin from "./pages/UserLogin";
 import UserRegister from "./pages/UserRegister";
 import UserDashboard from "./pages/UserDashboard";
+import UserSettings from "./pages/UserSettings";
 import AdminDashboard from "./pages/AdminDashboard";
 import MemberDetailPage from "./pages/MemberDetailPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -75,6 +76,7 @@ const AppRoutes = () => (
     <Route path="/login" element={<UserLogin />} />
     <Route path="/register" element={<UserRegister />} />
     <Route path="/dashboard" element={<ProtectedRoute element={<UserDashboard />} />} />
+    <Route path="/settings" element={<ProtectedRoute element={<UserSettings />} />} />
     <Route path="/admin/login" element={<Navigate to="/login" replace />} />
     <Route path="/admin/dashboard" element={<ProtectedRoute element={<AdminDashboard />} requireAdmin={true} />} />
     <Route path="/admin/member/:userId" element={<ProtectedRoute element={<MemberDetailPage />} requireAdmin={true} />} />
