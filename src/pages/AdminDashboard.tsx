@@ -140,39 +140,36 @@ export default function AdminDashboard() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="w-screen h-screen bg-white flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
+      <div className="w-screen h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
-      {/* Mobile Container */}
-      <div className="w-full h-full bg-white overflow-hidden flex flex-col">
+    <div className="w-screen h-screen bg-background overflow-hidden flex flex-col">
+      <div className="w-full h-full bg-background overflow-hidden flex flex-col">
         
         {/* Header */}
-        <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">
-          {/* Profile Avatar */}
+        <div className="bg-card px-4 py-4 flex items-center justify-between border-b border-border">
           <div className="relative">
-            <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-md border border-gray-100">
+            <div className="w-14 h-14 rounded-full bg-card flex items-center justify-center shadow-md border border-border">
               <img src={logo} alt="Admin" className="w-10 h-10 object-contain" />
             </div>
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-card flex items-center justify-center">
+              <div className="w-2 h-2 bg-primary-foreground rounded-full"></div>
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            <button className="px-5 py-2.5 bg-gray-100 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-200 transition">
+            <button className="px-5 py-2.5 bg-secondary rounded-full text-sm font-medium text-foreground hover:bg-muted transition">
               Admin
             </button>
             <button 
               onClick={handleSignOut}
-              className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition"
+              className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center hover:bg-muted transition"
             >
-              <LogOut className="w-5 h-5 text-gray-600" />
+              <LogOut className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -181,14 +178,14 @@ export default function AdminDashboard() {
         <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ scrollBehavior: 'smooth' }}>
           {/* Balance Card */}
           <div className="px-4 pt-6 pb-4">
-            <div className="bg-gray-100 rounded-3xl p-6">
+            <div className="bg-secondary rounded-3xl p-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-4xl font-bold text-gray-900 mb-1">Horizon</h2>
-                  <p className="text-2xl text-gray-400 font-medium">KES {totalGroupSavings.toLocaleString()}</p>
+                  <h2 className="text-4xl font-bold text-foreground mb-1">Horizon</h2>
+                  <p className="text-2xl text-muted-foreground font-medium">KES {totalGroupSavings.toLocaleString()}</p>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-lg">
-                  <TrendingUp className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-primary-foreground" />
                 </div>
               </div>
             </div>
@@ -197,117 +194,73 @@ export default function AdminDashboard() {
           {/* Action Buttons Grid */}
           <div className="px-4 pb-6">
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <button 
-                onClick={() => setActiveTab('members')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'members' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Users className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Members</span>
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('messages')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'messages' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <MessageSquare className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Messages</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('analytics')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'analytics' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <BarChart3 className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Analytics</span>
-              </button>
+              {[
+                { tab: 'members' as const, icon: Users, label: 'Members' },
+                { tab: 'messages' as const, icon: MessageSquare, label: 'Messages' },
+                { tab: 'analytics' as const, icon: BarChart3, label: 'Analytics' },
+              ].map(({ tab, icon: Icon, label }) => (
+                <button 
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                    activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Icon className="w-6 h-6" />
+                  <span className="text-xs font-semibold text-center">{label}</span>
+                </button>
+              ))}
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <button 
-                onClick={() => setActiveTab('search')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'search' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Search className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Search</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('announcements')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'announcements' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <SendHorizontal className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Announce</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('cycles')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'cycles' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <CalendarRange className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Cycles</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('activity')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'activity' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Activity className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Activity</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('settings')}
-                className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
-                  activeTab === 'settings' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Settings className="w-6 h-6" />
-                <span className="text-xs font-semibold text-center">Settings</span>
-              </button>
+              {[
+                { tab: 'search' as const, icon: Search, label: 'Search' },
+                { tab: 'announcements' as const, icon: SendHorizontal, label: 'Announce' },
+                { tab: 'cycles' as const, icon: CalendarRange, label: 'Cycles' },
+                { tab: 'activity' as const, icon: Activity, label: 'Activity' },
+                { tab: 'settings' as const, icon: Settings, label: 'Settings' },
+              ].map(({ tab, icon: Icon, label }) => (
+                <button 
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition active:scale-95 ${
+                    activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Icon className="w-6 h-6" />
+                  <span className="text-xs font-semibold text-center">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Tab Content Based on Active Tab */}
           {activeTab === 'overview' && (
             <>
-              {/* Today Section - Recent Activity */}
+              {/* Recent Activity */}
               <div className="px-4 pb-4">
-                <h3 className="text-lg font-semibold text-gray-600 mb-4">Recent Activity</h3>
+                <h3 className="text-lg font-semibold text-muted-foreground mb-4">Recent Activity</h3>
                 
                 {recentContributions.length === 0 ? (
                   <div className="text-center py-12">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Activity feed</h3>
-                    <p className="text-gray-500 max-w-sm mx-auto leading-relaxed">
+                    <h3 className="text-xl font-bold text-foreground mb-2">Activity feed</h3>
+                    <p className="text-muted-foreground max-w-sm mx-auto leading-relaxed">
                       When members add contributions, they show up here.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {recentContributions.slice(0, 8).map((contribution) => (
-                      <div key={contribution.id} className="bg-gray-100 rounded-2xl p-4">
+                      <div key={contribution.id} className="bg-secondary rounded-2xl p-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-white font-bold">
+                          <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
                             {contribution.profiles?.full_name?.substring(0, 2).toUpperCase() || '??'}
                           </div>
                           <div className="flex-1">
-                            <p className="font-semibold text-gray-900">{contribution.profiles?.full_name || 'Unknown'}</p>
-                            <p className="text-sm text-gray-500">{format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}</p>
+                            <p className="font-semibold text-foreground">{contribution.profiles?.full_name || 'Unknown'}</p>
+                            <p className="text-sm text-muted-foreground">{format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}</p>
                           </div>
-                          <span className="font-bold text-green-600">+KES {Number(contribution.amount).toLocaleString()}</span>
+                          <span className="font-bold text-primary">+KES {Number(contribution.amount).toLocaleString()}</span>
                         </div>
                       </div>
                     ))}
@@ -318,10 +271,10 @@ export default function AdminDashboard() {
               {/* Member Summary */}
               <div className="px-4 pb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-600">Members</h3>
+                  <h3 className="text-lg font-semibold text-muted-foreground">Members</h3>
                   <button 
                     onClick={() => setActiveTab('members')}
-                    className="text-sm font-medium text-blue-600 flex items-center gap-1 hover:text-blue-700"
+                    className="text-sm font-medium text-primary flex items-center gap-1 hover:underline"
                   >
                     View all <ChevronRight className="w-4 h-4" />
                   </button>
@@ -329,16 +282,16 @@ export default function AdminDashboard() {
                 
                 <div className="space-y-3">
                   {members.slice(0, 4).map((member) => (
-                    <div key={member.id} className="bg-gray-100 rounded-2xl p-4">
+                    <div key={member.id} className="bg-secondary rounded-2xl p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold">
+                        <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
                           {member.full_name.substring(0, 2).toUpperCase()}
                         </div>
                         <div className="flex-1">
-                          <p className="font-semibold text-gray-900">{member.full_name}</p>
-                          <p className="text-sm text-gray-500">{member.contribution_count} contributions</p>
+                          <p className="font-semibold text-foreground">{member.full_name}</p>
+                          <p className="text-sm text-muted-foreground">{member.contribution_count} contributions</p>
                         </div>
-                        <span className="font-bold text-gray-900">KES {member.total_contributions.toLocaleString()}</span>
+                        <span className="font-bold text-foreground">KES {member.total_contributions.toLocaleString()}</span>
                       </div>
                     </div>
                   ))}

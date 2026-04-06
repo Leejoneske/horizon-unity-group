@@ -6,21 +6,19 @@ import { hasSupabaseCredentials } from '@/integrations/supabase/client';
 import { sendContributionSuccessSMS, sendMilestoneCongreatsSMS } from '@/lib/sms-reminders';
 import { 
   Plus,
-  Building2,
+  Settings,
   CheckCircle2,
   Clock,
   Wallet,
   AlertCircle,
   X,
   LogOut,
-  Search,
   Share2
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import TipsCard from '@/components/TipsCard';
 import NotificationCenter from '@/components/NotificationCenter';
-import AccountDetailsPanel from '@/components/AccountDetailsPanel';
 
 interface Contribution {
   id: string;
@@ -72,13 +70,11 @@ export default function UserDashboard() {
   const [paymentPolling, setPaymentPolling] = useState(false);
   const [pendingReference, setPendingReference] = useState<string | null>(null);
   const [pesapalIframeUrl, setPesapalIframeUrl] = useState<string | null>(null);
-  const [showAccountDetails, setShowAccountDetails] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  // Redirect on session expiry
   useEffect(() => {
     if (sessionExpired) {
       clearSessionExpired();
@@ -97,7 +93,6 @@ export default function UserDashboard() {
       }
       fetchData();
 
-      // Show welcome banner for new users (created within the last 24 hours)
       const createdAt = user.created_at ? new Date(user.created_at) : null;
       if (createdAt) {
         const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
@@ -109,32 +104,26 @@ export default function UserDashboard() {
     }
   }, [user, isAdmin, authLoading, navigate]);
 
-  // Periodic session validity check — detect stale sessions before they cause empty UI
   useEffect(() => {
     if (!user) return;
     const interval = setInterval(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          console.warn('Session lost during interval check');
           toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
           navigate('/login', { replace: true });
         }
-      } catch {
-        // ignore network errors
-      }
-    }, 60000); // Check every 60 seconds
+      } catch {}
+    }, 60000);
     return () => clearInterval(interval);
   }, [user, navigate, toast]);
 
-  // No longer needed - payment stays in-app via iframe
-
   const startPaymentPolling = useCallback((reference: string) => {
     setPaymentPolling(true);
-    toast({ title: '⏳ Checking payment...', description: 'Verifying your M-Pesa payment status.' });
+    toast({ title: 'Checking payment...', description: 'Verifying your M-Pesa payment status.' });
 
     let attempts = 0;
-    const maxAttempts = 30; // Poll for ~2.5 minutes
+    const maxAttempts = 30;
     
     const poll = setInterval(async () => {
       attempts++;
@@ -150,23 +139,21 @@ export default function UserDashboard() {
           setPaymentPolling(false);
           setPendingReference(null);
           setPesapalIframeUrl(null);
-          toast({ title: '✅ Payment Confirmed!', description: 'Your contribution has been recorded.' });
+          toast({ title: 'Payment Confirmed!', description: 'Your contribution has been recorded.' });
           fetchData();
         } else if (data?.status === 'failed' || data?.status === 'cancelled') {
           clearInterval(poll);
           setPaymentPolling(false);
           setPendingReference(null);
           setPesapalIframeUrl(null);
-          toast({ title: '❌ Payment Failed', description: 'The payment was not completed. Please try again.', variant: 'destructive' });
+          toast({ title: 'Payment Failed', description: 'The payment was not completed. Please try again.', variant: 'destructive' });
         } else if (attempts >= maxAttempts) {
           clearInterval(poll);
           setPaymentPolling(false);
           setPendingReference(null);
-          toast({ title: '⏱ Payment Pending', description: 'We\'re still waiting for confirmation. It may take a few minutes.' });
+          toast({ title: 'Payment Pending', description: 'We\'re still waiting for confirmation. It may take a few minutes.' });
         }
-      } catch {
-        // Keep polling
-      }
+      } catch {}
     }, 5000);
 
     return () => clearInterval(poll);
@@ -194,12 +181,10 @@ export default function UserDashboard() {
           .single()
       ]);
 
-      // Check if profile fetch failed due to auth — means session is stale
       if (profileRes.error) {
         const code = (profileRes.error as any)?.code;
         const msg = profileRes.error.message?.toLowerCase() || '';
         if (code === 'PGRST301' || msg.includes('jwt') || msg.includes('unauthorized') || msg.includes('expired')) {
-          console.warn('Session expired during data fetch');
           toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' });
           navigate('/login', { replace: true });
           return;
@@ -210,7 +195,6 @@ export default function UserDashboard() {
       if (activeCycleData) setActiveCycle(activeCycleData);
       else setActiveCycle(null);
 
-      // Fetch contributions scoped to active cycle
       let contribQuery = supabase
         .from('contributions')
         .select('*')
@@ -228,7 +212,6 @@ export default function UserDashboard() {
       
       let profileData = profileRes.data;
       
-      // If phone_number is missing from profile, extract from auth metadata
       if (profileData && !profileData.phone_number && user) {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const phoneFromAuth = authUser?.user_metadata?.phone_number;
@@ -298,10 +281,7 @@ export default function UserDashboard() {
 
       const functionUrl = `${supabaseUrl}/functions/v1/initiate-pesapal-payment`;
       const dailyAmount = profile?.daily_contribution_amount || 100;
-
-      // Build callback URL that returns user to dashboard with reference
       const callbackPageUrl = `${window.location.origin}/dashboard?payment=pending`;
-
       const { data: { session } } = await supabase.auth.getSession();
 
       const response = await fetch(functionUrl, {
@@ -333,28 +313,25 @@ export default function UserDashboard() {
         startPaymentPolling(result.reference);
         
         if (result.redirectUrl) {
-          // Show PesaPal payment page in iframe modal
           setPesapalIframeUrl(result.redirectUrl);
           toast({
-            title: '📱 Complete Payment',
+            title: 'Complete Payment',
             description: 'Select M-Pesa in the payment window and enter your PIN when prompted.',
           });
         } else {
           toast({
-            title: '✅ Payment Initiated',
+            title: 'Payment Initiated',
             description: 'Check your phone for the M-Pesa prompt.',
           });
         }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process payment';
-      toast({ title: '❌ Payment Error', description: message, variant: 'destructive' });
+      toast({ title: 'Payment Error', description: message, variant: 'destructive' });
     } finally {
       setPaymentLoading(false);
     }
   };
-
-  // No longer needed - payment stays in-app via iframe
 
   const handleAddContributionForDate = async (date: Date) => {
     if (!activeCycle) {
@@ -386,12 +363,9 @@ export default function UserDashboard() {
 
       toast({ title: 'Contribution added!', description: `KES ${dailyAmount.toLocaleString()} recorded for ${format(date, 'MMM d, yyyy')}.` });
 
-      // Send confirmation SMS + check for milestones
       try {
         if (profile?.phone_number) {
           await sendContributionSuccessSMS(profile.phone_number, dailyAmount, profile.full_name);
-          
-          // Check for milestone (contribution count after this one)
           const newCount = (contributions?.length || 0) + 1;
           if ([7, 14, 30, 50, 100].includes(newCount)) {
             await sendMilestoneCongreatsSMS(
@@ -428,7 +402,6 @@ export default function UserDashboard() {
       await signOut();
       navigate('/login', { replace: true });
     } catch (error) {
-      console.error('Error signing out:', error);
       navigate('/login', { replace: true });
     }
   };
@@ -457,7 +430,6 @@ export default function UserDashboard() {
     }
   };
 
-  // Cycle-scoped balance: only contributions in this cycle, NO balance_adjustment (old cycle adjustments)
   const totalContributions = contributions.reduce((sum, c) => sum + Number(c.amount), 0);
   const effectiveBalance = totalContributions;
   const thisMonthContributions = contributions.filter(c => {
@@ -477,27 +449,27 @@ export default function UserDashboard() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="w-screen h-screen bg-white flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
+      <div className="w-screen h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen bg-white overflow-hidden flex flex-col">
-      <div className="w-full h-full bg-white overflow-hidden flex flex-col">
+    <div className="w-screen h-screen bg-background overflow-hidden flex flex-col">
+      <div className="w-full h-full bg-background overflow-hidden flex flex-col">
         
         {/* Header */}
-        <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-gray-100">
+        <div className="bg-card px-4 py-4 flex items-center justify-between border-b border-border">
           <div className="relative">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
+            <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
               {profile?.full_name?.substring(0, 2).toUpperCase() || 'U'}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button 
               onClick={handleInvite}
-              className="px-5 py-2.5 bg-gray-100 rounded-full text-sm font-medium text-gray-900 hover:bg-gray-200 transition flex items-center gap-2"
+              className="px-5 py-2.5 bg-secondary rounded-full text-sm font-medium text-foreground hover:bg-muted transition flex items-center gap-2"
             >
               <Share2 className="w-4 h-4" />
               Invite
@@ -505,9 +477,9 @@ export default function UserDashboard() {
             {user && <NotificationCenter userId={user.id} />}
             <button 
               onClick={handleSignOut}
-              className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition"
+              className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center hover:bg-muted transition"
             >
-              <LogOut className="w-5 h-5 text-gray-600" />
+              <LogOut className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -517,11 +489,11 @@ export default function UserDashboard() {
           {/* Payment Polling Banner */}
           {paymentPolling && (
             <div className="px-4 pt-4">
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="bg-info/10 border border-info/20 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-8 h-8 border-3 border-info border-t-transparent rounded-full animate-spin" />
                 <div>
-                  <p className="font-semibold text-blue-900 text-sm">Verifying payment...</p>
-                  <p className="text-xs text-blue-700">Waiting for M-Pesa confirmation</p>
+                  <p className="font-semibold text-info text-sm">Verifying payment...</p>
+                  <p className="text-xs text-info/70">Waiting for M-Pesa confirmation</p>
                 </div>
               </div>
             </div>
@@ -530,19 +502,18 @@ export default function UserDashboard() {
           {/* Welcome Banner for new users */}
           {showWelcomeBanner && profile && (
             <div className="px-4 pt-4">
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-5 relative">
+              <div className="bg-accent border border-primary/20 rounded-2xl p-5 relative">
                 <button
                   onClick={() => {
                     setShowWelcomeBanner(false);
                     if (user) localStorage.setItem(`welcome_dismissed_${user.id}`, 'true');
                   }}
-                  className="absolute top-3 right-3 w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center hover:bg-emerald-200 transition"
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition"
                 >
-                  <X className="w-3.5 h-3.5 text-emerald-600" />
+                  <X className="w-3.5 h-3.5 text-accent-foreground" />
                 </button>
-                <p className="text-2xl mb-1">🎉</p>
-                <h3 className="font-bold text-emerald-900 text-lg">Welcome to Horizon Unit, {profile.full_name.split(' ')[0]}!</h3>
-                <p className="text-sm text-emerald-700 mt-1">
+                <h3 className="font-bold text-accent-foreground text-lg">Welcome to Horizon Unit, {profile.full_name.split(' ')[0]}!</h3>
+                <p className="text-sm text-accent-foreground/70 mt-1">
                   Your account is all set. Start making daily contributions to grow your savings. We're glad to have you!
                 </p>
               </div>
@@ -551,33 +522,33 @@ export default function UserDashboard() {
 
           {/* Balance Card */}
           <div className="px-4 pt-6 pb-4">
-            <div className="bg-gray-100 rounded-3xl p-6">
+            <div className="bg-secondary rounded-3xl p-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-4xl font-bold text-gray-900 mb-1">{profile?.full_name?.split(' ')[0] || 'User'}</h2>
-                  <p className="text-2xl text-gray-400 font-medium">
+                  <h2 className="text-4xl font-bold text-foreground mb-1">{profile?.full_name?.split(' ')[0] || 'User'}</h2>
+                  <p className="text-2xl text-muted-foreground font-medium">
                     {profile?.balance_visible 
                       ? `KES ${effectiveBalance.toLocaleString()}` 
                       : 'KES ****'
                     }
                   </p>
                   {!profile?.balance_visible && (
-                    <p className="text-xs text-gray-400 mt-1">Balance will be visible when the cycle ends</p>
+                    <p className="text-xs text-muted-foreground mt-1">Balance will be visible when the cycle ends</p>
                   )}
                 </div>
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-lg">
-                  <Wallet className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                  <Wallet className="w-6 h-6 text-primary-foreground" />
                 </div>
               </div>
               {activeCycle ? (
                 <div className="mt-3 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-xs text-gray-500 font-medium">{activeCycle.cycle_name} · ends {format(parseISO(activeCycle.end_date), 'MMM d')}</span>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                  <span className="text-xs text-muted-foreground font-medium">{activeCycle.cycle_name} · ends {format(parseISO(activeCycle.end_date), 'MMM d')}</span>
                 </div>
               ) : (
                 <div className="mt-3 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-red-400 rounded-full" />
-                  <span className="text-xs text-red-500 font-medium">No active cycle — deposits paused</span>
+                  <div className="w-2 h-2 bg-destructive rounded-full" />
+                  <span className="text-xs text-destructive font-medium">No active cycle — deposits paused</span>
                 </div>
               )}
             </div>
@@ -588,22 +559,22 @@ export default function UserDashboard() {
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={handleAddContribution}
-                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
+                className="bg-secondary rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted transition active:scale-95"
               >
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <Plus className="w-6 h-6 text-gray-900" />
+                <div className="w-12 h-12 bg-card rounded-full flex items-center justify-center shadow-sm">
+                  <Plus className="w-6 h-6 text-foreground" />
                 </div>
-                <span className="text-base font-semibold text-gray-900">Add money</span>
+                <span className="text-base font-semibold text-foreground">Add money</span>
               </button>
               
               <button 
-                onClick={() => setShowAccountDetails(true)}
-                className="bg-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-gray-200 transition active:scale-95"
+                onClick={() => navigate('/settings')}
+                className="bg-secondary rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted transition active:scale-95"
               >
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
-                  <Building2 className="w-6 h-6 text-gray-900" />
+                <div className="w-12 h-12 bg-card rounded-full flex items-center justify-center shadow-sm">
+                  <Settings className="w-6 h-6 text-foreground" />
                 </div>
-                <span className="text-base font-semibold text-gray-900">Account details</span>
+                <span className="text-base font-semibold text-foreground">Settings</span>
               </button>
             </div>
           </div>
@@ -618,14 +589,14 @@ export default function UserDashboard() {
           {/* Missed Days Alert */}
           {missedDays > 0 && (
             <div className="px-4 pb-6">
-              <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-3xl p-6 relative overflow-hidden">
+              <div className="bg-warning/10 border border-warning/20 rounded-3xl p-6 relative overflow-hidden">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-amber-300 to-orange-400 rounded-2xl flex items-center justify-center shadow-lg">
-                    <AlertCircle className="w-6 h-6 text-white" />
+                  <div className="w-12 h-12 bg-warning rounded-2xl flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-warning-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">Catch up!</h3>
-                    <p className="text-gray-700 font-medium">{missedDays} day{missedDays > 1 ? 's' : ''} pending contribution</p>
+                    <h3 className="text-xl font-bold text-foreground">Catch up!</h3>
+                    <p className="text-muted-foreground font-medium">{missedDays} day{missedDays > 1 ? 's' : ''} pending contribution</p>
                   </div>
                 </div>
               </div>
@@ -635,25 +606,25 @@ export default function UserDashboard() {
           {/* Messages */}
           {unreadMessages.length > 0 && (
             <div className="px-4 pb-4">
-              <h3 className="text-lg font-semibold text-gray-600 mb-4">Messages</h3>
+              <h3 className="text-lg font-semibold text-muted-foreground mb-4">Messages</h3>
               <div className="space-y-3">
                 {unreadMessages.map(message => (
                   <div 
                     key={message.id}
                     onClick={() => handleMarkMessageRead(message.id)}
-                    className="bg-gray-100 rounded-2xl p-4 cursor-pointer hover:bg-gray-200 transition"
+                    className="bg-secondary rounded-2xl p-4 cursor-pointer hover:bg-muted transition"
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                         message.message_type === 'warning' 
-                          ? 'bg-gradient-to-br from-amber-400 to-orange-500' 
-                          : 'bg-gradient-to-br from-blue-400 to-blue-500'
+                          ? 'bg-warning' 
+                          : 'bg-info'
                       }`}>
                         <AlertCircle className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-900">{message.message}</p>
-                        <p className="text-sm text-gray-500">{format(parseISO(message.created_at), 'MMM d, HH:mm')}</p>
+                        <p className="font-semibold text-foreground">{message.message}</p>
+                        <p className="text-sm text-muted-foreground">{format(parseISO(message.created_at), 'MMM d, HH:mm')}</p>
                       </div>
                     </div>
                   </div>
@@ -664,9 +635,9 @@ export default function UserDashboard() {
 
           {/* Calendar */}
           <div className="px-4 pb-4">
-            <h3 className="text-lg font-semibold text-gray-600 mb-4">{format(currentMonth, 'MMMM yyyy')}</h3>
-            <div className="bg-gray-100 rounded-3xl p-4">
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-gray-500 mb-3">
+            <h3 className="text-lg font-semibold text-muted-foreground mb-4">{format(currentMonth, 'MMMM yyyy')}</h3>
+            <div className="bg-secondary rounded-3xl p-4">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-muted-foreground mb-3">
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                   <div key={i} className="py-2">{day}</div>
                 ))}
@@ -685,12 +656,12 @@ export default function UserDashboard() {
                       disabled={true}
                       className={`aspect-square rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${
                         contributed 
-                          ? 'bg-gradient-to-br from-green-400 to-green-500 text-white shadow-sm' 
+                          ? 'bg-primary text-primary-foreground shadow-sm' 
                           : isToday 
-                            ? 'bg-white text-gray-900 ring-2 ring-gray-900' 
+                            ? 'bg-card text-foreground ring-2 ring-foreground' 
                             : isFuture
-                              ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-gray-600'
+                              ? 'text-muted-foreground/30 cursor-not-allowed'
+                              : 'text-muted-foreground'
                       }`}
                     >
                       {format(day, 'd')}
@@ -704,7 +675,7 @@ export default function UserDashboard() {
           {/* Recent Activity */}
           <div className="px-4 pb-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-600">Recent</h3>
+              <h3 className="text-lg font-semibold text-muted-foreground">Recent</h3>
               <div className="flex items-center gap-2">
                 {profile?.balance_visible && contributions.length > 0 && (
                   <button
@@ -722,7 +693,7 @@ export default function UserDashboard() {
                       URL.revokeObjectURL(url);
                       toast({ title: 'Downloaded', description: 'Your contribution history has been saved.' });
                     }}
-                    className="text-xs font-medium text-gray-500 flex items-center gap-1"
+                    className="text-xs font-medium text-muted-foreground flex items-center gap-1"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                     CSV
@@ -731,7 +702,7 @@ export default function UserDashboard() {
                 {profile?.balance_visible && contributions.length > 3 && (
                   <button 
                     onClick={() => setShowHistory(!showHistory)}
-                    className="text-sm font-medium text-gray-900"
+                    className="text-sm font-medium text-foreground"
                   >
                     {showHistory ? 'Show less' : 'View all'}
                   </button>
@@ -741,34 +712,34 @@ export default function UserDashboard() {
             
             {contributions.length === 0 ? (
               <div className="text-center py-12">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Your activity feed</h3>
-                <p className="text-gray-500 max-w-sm mx-auto leading-relaxed">
+                <h3 className="text-xl font-bold text-foreground mb-2">Your activity feed</h3>
+                <p className="text-muted-foreground max-w-sm mx-auto leading-relaxed">
                   When you add money it shows up here. Get started by adding your first contribution.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
                 {contributions.slice(0, showHistory && profile?.balance_visible ? contributions.length : 3).map((contribution) => (
-                  <div key={contribution.id} className="bg-gray-100 rounded-2xl p-4">
+                  <div key={contribution.id} className="bg-secondary rounded-2xl p-4">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                         contribution.status === 'completed' 
-                          ? 'bg-gradient-to-br from-green-400 to-green-500' 
-                          : 'bg-gradient-to-br from-amber-400 to-orange-500'
+                          ? 'bg-primary' 
+                          : 'bg-warning'
                       }`}>
                         {contribution.status === 'completed' 
-                          ? <CheckCircle2 className="w-5 h-5 text-white" /> 
-                          : <Clock className="w-5 h-5 text-white" />
+                          ? <CheckCircle2 className="w-5 h-5 text-primary-foreground" /> 
+                          : <Clock className="w-5 h-5 text-warning-foreground" />
                         }
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-900">
+                        <p className="font-semibold text-foreground">
                           {profile?.balance_visible 
                             ? `+KES ${Number(contribution.amount).toLocaleString()}`
                             : 'Contribution recorded'
                           }
                         </p>
-                        <p className="text-sm text-gray-500">{format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}</p>
+                        <p className="text-sm text-muted-foreground">{format(parseISO(contribution.contribution_date), 'MMM d, yyyy')}</p>
                       </div>
                     </div>
                   </div>
@@ -778,9 +749,9 @@ export default function UserDashboard() {
           </div>
 
           {/* Bottom Nav */}
-          <div className="bg-white border-t border-gray-200">
+          <div className="bg-card border-t border-border">
             <div className="px-4 py-3">
-              <p className="text-center text-sm text-gray-600 mb-3">
+              <p className="text-center text-sm text-muted-foreground mb-3">
                 Daily target: <span className="font-semibold">KES {dailyAmount.toLocaleString()}</span>
               </p>
               <div className="grid grid-cols-2 gap-3 pb-2">
@@ -794,15 +765,15 @@ export default function UserDashboard() {
                   }}
                   className={`py-4 px-6 rounded-full text-base font-semibold transition active:scale-95 ${
                     profile?.balance_visible 
-                      ? 'bg-gray-100 text-gray-900 hover:bg-gray-200' 
-                      : 'bg-gray-50 text-gray-400'
+                      ? 'bg-secondary text-foreground hover:bg-muted' 
+                      : 'bg-secondary/50 text-muted-foreground'
                   }`}
                 >
                   History
                 </button>
                 <button 
                   onClick={handleAddContribution}
-                  className="py-4 px-6 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full text-base font-semibold text-white hover:from-orange-600 hover:to-orange-700 transition shadow-lg shadow-orange-500/30 active:scale-95"
+                  className="py-4 px-6 bg-primary rounded-full text-base font-semibold text-primary-foreground hover:opacity-90 transition active:scale-95"
                 >
                   Add
                 </button>
@@ -815,26 +786,24 @@ export default function UserDashboard() {
       {/* PesaPal Payment Iframe Modal */}
       {pesapalIframeUrl && (
         <div className="fixed inset-0 bg-black/70 z-50 flex flex-col items-center justify-center p-2">
-          <div className="bg-white rounded-3xl w-full max-w-md h-[85vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <div className="bg-card rounded-3xl w-full max-w-md h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
-                <h3 className="font-bold text-lg text-gray-900">Complete Payment</h3>
-                <p className="text-xs text-gray-500">Select M-Pesa and enter your PIN</p>
+                <h3 className="font-bold text-lg text-foreground">Complete Payment</h3>
+                <p className="text-xs text-muted-foreground">Select M-Pesa and enter your PIN</p>
               </div>
               <button
-                onClick={() => {
-                  setPesapalIframeUrl(null);
-                }}
-                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
+                onClick={() => setPesapalIframeUrl(null)}
+                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-muted transition"
               >
-                <X className="w-5 h-5 text-gray-600" />
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
             <div className="flex-1 relative">
               {paymentPolling && (
-                <div className="absolute top-0 left-0 right-0 bg-blue-50 px-4 py-2 flex items-center gap-2 z-10">
-                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-xs text-blue-700 font-medium">Waiting for confirmation...</p>
+                <div className="absolute top-0 left-0 right-0 bg-info/10 px-4 py-2 flex items-center gap-2 z-10">
+                  <div className="w-4 h-4 border-2 border-info border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-info font-medium">Waiting for confirmation...</p>
                 </div>
               )}
               <iframe
@@ -851,43 +820,43 @@ export default function UserDashboard() {
       {/* Payment Confirmation Dialog */}
       {showPaymentConfirm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+          <div className="bg-card rounded-3xl p-6 w-full max-w-sm shadow-2xl">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 mx-auto mb-4 flex items-center justify-center shadow-lg">
-                <Plus className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 rounded-full bg-primary mx-auto mb-4 flex items-center justify-center">
+                <Plus className="w-8 h-8 text-primary-foreground" />
               </div>
-              <h3 className="font-bold text-xl text-gray-900">Confirm Payment</h3>
-              <p className="text-gray-500 text-sm mt-1">via M-Pesa</p>
+              <h3 className="font-bold text-xl text-foreground">Confirm Payment</h3>
+              <p className="text-muted-foreground text-sm mt-1">via M-Pesa</p>
             </div>
 
-            <div className="bg-gray-100 rounded-2xl p-4 mb-4">
-              <p className="text-xs text-gray-600 font-semibold mb-1">M-PESA NUMBER</p>
-              <p className="text-2xl font-bold text-gray-900">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}</p>
-              <p className="text-xs text-gray-500 mt-1">Payment will open in-app</p>
+            <div className="bg-secondary rounded-2xl p-4 mb-4">
+              <p className="text-xs text-muted-foreground font-semibold mb-1">M-PESA NUMBER</p>
+              <p className="text-2xl font-bold text-foreground">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}</p>
+              <p className="text-xs text-muted-foreground mt-1">Payment will open in-app</p>
             </div>
 
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 mb-6">
-              <p className="text-xs text-green-700 font-semibold mb-1">AMOUNT</p>
-              <p className="text-3xl font-bold text-green-600">KES {(profile?.daily_contribution_amount || 100).toLocaleString()}</p>
-              <p className="text-xs text-green-600 mt-1">Your daily contribution</p>
+            <div className="bg-accent border-2 border-primary/20 rounded-2xl p-4 mb-6">
+              <p className="text-xs text-accent-foreground font-semibold mb-1">AMOUNT</p>
+              <p className="text-3xl font-bold text-primary">KES {(profile?.daily_contribution_amount || 100).toLocaleString()}</p>
+              <p className="text-xs text-accent-foreground/70 mt-1">Your daily contribution</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => setShowPaymentConfirm(false)}
                 disabled={paymentLoading}
-                className="py-4 px-6 bg-gray-100 rounded-full font-semibold text-gray-900 hover:bg-gray-200 transition active:scale-95 disabled:opacity-50"
+                className="py-4 px-6 bg-secondary rounded-full font-semibold text-foreground hover:bg-muted transition active:scale-95 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleInitiatePayment}
                 disabled={paymentLoading}
-                className="py-4 px-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full font-semibold text-white hover:from-green-600 hover:to-emerald-700 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="py-4 px-6 bg-primary rounded-full font-semibold text-primary-foreground hover:opacity-90 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {paymentLoading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                     Processing...
                   </>
                 ) : (
@@ -897,21 +866,6 @@ export default function UserDashboard() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Account Details Panel */}
-      {showAccountDetails && profile && user && (
-        <AccountDetailsPanel
-          profile={profile}
-          user={user}
-          effectiveBalance={effectiveBalance}
-          contributions={contributions}
-          missedDays={missedDays}
-          dailyAmount={dailyAmount}
-          activeCycle={activeCycle}
-          onClose={() => setShowAccountDetails(false)}
-          onProfileUpdated={fetchData}
-        />
       )}
     </div>
   );

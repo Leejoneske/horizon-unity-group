@@ -175,11 +175,7 @@ export default function UserRegister() {
         ogDescription="Sign up in seconds and start saving with your group. No hidden fees, transparent tracking."
         canonical={typeof window !== 'undefined' ? `${window.location.origin}/register` : ''}
       />
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex flex-col items-center justify-center p-4">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-        </div>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
 
         <div className="w-full max-w-md relative z-10">
           <div className="text-center mb-12">
