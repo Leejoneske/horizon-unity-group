@@ -817,50 +817,73 @@ export default function UserDashboard() {
         </div>
       )}
 
-      {/* Payment Confirmation Dialog */}
+      {/* Payment Confirmation Bottom Sheet */}
       {showPaymentConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-card rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-primary mx-auto mb-4 flex items-center justify-center">
-                <Plus className="w-8 h-8 text-primary-foreground" />
-              </div>
-              <h3 className="font-bold text-xl text-foreground">Confirm Payment</h3>
-              <p className="text-muted-foreground text-sm mt-1">via M-Pesa</p>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+          <div 
+            className="bg-card rounded-t-3xl w-full max-w-md shadow-2xl animate-in slide-in-from-bottom duration-300"
+          >
+            {/* Drag Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
             </div>
 
-            <div className="bg-secondary rounded-2xl p-4 mb-4">
-              <p className="text-xs text-muted-foreground font-semibold mb-1">M-PESA NUMBER</p>
-              <p className="text-2xl font-bold text-foreground">{profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}</p>
-              <p className="text-xs text-muted-foreground mt-1">Payment will open in-app</p>
-            </div>
-
-            <div className="bg-accent border-2 border-primary/20 rounded-2xl p-4 mb-6">
-              <p className="text-xs text-accent-foreground font-semibold mb-1">AMOUNT</p>
-              <p className="text-3xl font-bold text-primary">KES {(profile?.daily_contribution_amount || 100).toLocaleString()}</p>
-              <p className="text-xs text-accent-foreground/70 mt-1">Your daily contribution</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            {/* Close Button */}
+            <div className="px-5 pt-1 pb-2 flex justify-start">
               <button 
                 onClick={() => setShowPaymentConfirm(false)}
                 disabled={paymentLoading}
-                className="py-4 px-6 bg-secondary rounded-full font-semibold text-foreground hover:bg-muted transition active:scale-95 disabled:opacity-50"
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary transition"
               >
-                Cancel
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
+            </div>
+
+            {/* Icon & Title */}
+            <div className="flex flex-col items-center px-6 pb-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center mb-4">
+                <Wallet className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="font-bold text-xl text-foreground">Ready to contribute</h3>
+              <p className="text-sm text-muted-foreground mt-1 text-center">
+                A payment prompt will be sent to your registered M-Pesa number.
+              </p>
+            </div>
+
+            {/* Details Card */}
+            <div className="mx-6 mb-4 bg-secondary rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">Sign in on M-PESA with:</p>
+                  <p className="text-base font-bold text-foreground">
+                    Phone number: {profile?.phone_number ? profile.phone_number.replace(/^254/, '0') : 'Not set'}
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-border" />
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Amount</p>
+                <p className="text-lg font-bold text-foreground">KES {(profile?.daily_contribution_amount || 100).toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Continue Button */}
+            <div className="px-6 pb-8 pt-2">
               <button 
                 onClick={handleInitiatePayment}
                 disabled={paymentLoading}
-                className="py-4 px-6 bg-primary rounded-full font-semibold text-primary-foreground hover:opacity-90 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-primary rounded-2xl font-semibold text-primary-foreground hover:opacity-90 transition active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-base"
               >
                 {paymentLoading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                     Processing...
                   </>
                 ) : (
-                  'Pay Now'
+                  'Continue'
                 )}
               </button>
             </div>
