@@ -13,7 +13,8 @@ import {
   AlertCircle,
   X,
   LogOut,
-  Share2
+  Share2,
+  Phone
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
