@@ -309,6 +309,18 @@ export default function UserRegister() {
                     {isSendingOtp ? 'Sending...' : 'Resend code'}
                   </button>
                 </div>
+
+                <div className="bg-secondary rounded-xl p-4 text-xs text-muted-foreground space-y-2">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Can't get the OTP?
+                  </p>
+                  <ul className="space-y-1.5 list-disc list-inside">
+                    <li>Check your <span className="font-medium text-foreground">SMS spam/blocked messages</span> folder</li>
+                    <li>Dial <span className="font-mono font-semibold text-foreground">*456*9*5#</span> and accept all promotional messages, then try again</li>
+                    <li>Make sure your phone number is correct and has network signal</li>
+                  </ul>
+                </div>
               </div>
             )}
 

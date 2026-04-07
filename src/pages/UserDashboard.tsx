@@ -820,9 +820,13 @@ export default function UserDashboard() {
 
       {/* Payment Confirmation Bottom Sheet */}
       {showPaymentConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+          onClick={() => { if (!paymentLoading) setShowPaymentConfirm(false); }}
+        >
           <div 
             className="bg-card rounded-t-3xl w-full max-w-md shadow-2xl animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Drag Handle */}
             <div className="flex justify-center pt-3 pb-1">
