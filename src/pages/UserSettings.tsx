@@ -276,34 +276,6 @@ export default function UserSettings() {
               )}
             </div>
 
-            {/* Email */}
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="w-4 h-4" />
-                  <span className="text-xs font-semibold uppercase">Email</span>
-                </div>
-                {!editingEmail && (
-                  <button onClick={() => setEditingEmail(true)} className="text-muted-foreground hover:text-foreground transition">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              {editingEmail ? (
-                <div className="flex items-center gap-2 mt-2">
-                  <Input type="email" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} className="flex-1" autoFocus />
-                  <button onClick={handleSaveEmail} disabled={saving} className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground shrink-0 disabled:opacity-50">
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => { setEditingEmail(false); setEmailValue(user.email || ''); }} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground shrink-0">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <p className="text-base font-semibold text-foreground">{user.email}</p>
-              )}
-            </div>
-
             {/* Phone */}
             <div className="p-4">
               <div className="flex items-center justify-between mb-1">
