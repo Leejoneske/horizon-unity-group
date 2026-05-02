@@ -93,6 +93,36 @@ serve(async (req) => {
       return json({ skipped: true, reason: 'Reminder messages are paused.' });
     }
 
+    const nowParts0 = nowParts;
+    const todayStr = nowParts0.date;
+
+    // ── Auto-end expired active cycle (runs server-side, independent of admin login) ──
+    if (cycleRes.data && todayStr > cycleRes.data.end_date) {
+      const endResult = await autoEndCycle(supabase, supabaseUrl, anonKey, cycleRes.data);
+      return json({ cycle_ended: true, ...endResult });
+    }
+
+    // ── Cycle ending-soon SMS (7/3/1 days left) ──
+    if (cycleRes.data) {
+      const daysLeft = daysBetween(todayStr, cycleRes.data.end_date);
+      if ([7, 3, 1].includes(daysLeft)) {
+        const slotKey = `cycle_ending_soon_${cycleRes.data.id}_${daysLeft}`;
+        const { data: existing } = await supabase
+          .from('admin_settings')
+          .select('setting_value')
+          .eq('setting_key', slotKey)
+          .maybeSingle();
+        if (!existing) {
+          await sendCycleEndingSoonNotices(supabase, supabaseUrl, anonKey, cycleRes.data, daysLeft);
+          const fbAdmin = (settingsRes.data ?? []).find((row) => row.updated_by)?.updated_by ?? (adminRolesRes.data ?? [])[0]?.user_id ?? null;
+          await supabase.from('admin_settings').upsert(
+            { setting_key: slotKey, setting_value: todayStr, updated_by: fbAdmin },
+            { onConflict: 'setting_key' }
+          );
+        }
+      }
+    }
+
     if (!cycleRes.data) {
       return json({ skipped: true, reason: 'No active savings cycle.' });
     }
