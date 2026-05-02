@@ -22,6 +22,9 @@ interface Member {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
+  is_suspended: boolean;
+  suspended_at: string | null;
+  suspended_reason: string | null;
 }
 
 interface Contribution {
