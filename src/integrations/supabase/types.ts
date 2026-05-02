@@ -232,8 +232,11 @@ export type Database = {
           daily_contribution_amount: number
           full_name: string
           id: string
+          is_suspended: boolean
           missed_contributions: number
           phone_number: string | null
+          suspended_at: string | null
+          suspended_reason: string | null
           updated_at: string
           user_id: string
         }
@@ -244,8 +247,11 @@ export type Database = {
           daily_contribution_amount?: number
           full_name: string
           id?: string
+          is_suspended?: boolean
           missed_contributions?: number
           phone_number?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
           updated_at?: string
           user_id: string
         }
@@ -256,8 +262,11 @@ export type Database = {
           daily_contribution_amount?: number
           full_name?: string
           id?: string
+          is_suspended?: boolean
           missed_contributions?: number
           phone_number?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
           updated_at?: string
           user_id?: string
         }

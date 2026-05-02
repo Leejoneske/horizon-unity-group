@@ -99,7 +99,7 @@ export default function UserLogin() {
 
       console.log('✓ User authenticated:', authData.user.id);
 
-      // Check if user is admin
+      // Check suspension status (skip for admins)
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -109,6 +109,27 @@ export default function UserLogin() {
 
       console.log('📋 Role check result:', roleData);
       if (roleError) console.error('Role check error:', roleError);
+
+      if (!roleData) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_suspended, suspended_reason')
+          .eq('user_id', authData.user.id)
+          .maybeSingle();
+
+        if (profile?.is_suspended) {
+          await supabase.auth.signOut();
+          toast({
+            title: 'Account suspended',
+            description: profile.suspended_reason
+              ? `Your account is suspended: ${profile.suspended_reason}. Please contact the admin.`
+              : 'Your account has been suspended. Please contact the admin.',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
 
       toast({
         title: 'Welcome!',

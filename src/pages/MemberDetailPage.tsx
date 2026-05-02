@@ -22,6 +22,9 @@ interface Member {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
+  is_suspended: boolean;
+  suspended_at: string | null;
+  suspended_reason: string | null;
 }
 
 interface Contribution {
@@ -59,6 +62,8 @@ export default function MemberDetailPage() {
   const [editingMissed, setEditingMissed] = useState(false);
   const [missedValue, setMissedValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showSuspendDialog, setShowSuspendDialog] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
 
   // Quick message
   const [showMessageBox, setShowMessageBox] = useState(false);
@@ -113,7 +118,10 @@ export default function MemberDetailPage() {
           balance_visible: profileData.balance_visible,
           daily_contribution_amount: profileData.daily_contribution_amount,
           balance_adjustment: profileData.balance_adjustment || 0,
-          missed_contributions: missedDays
+          missed_contributions: missedDays,
+          is_suspended: (profileData as any).is_suspended ?? false,
+          suspended_at: (profileData as any).suspended_at ?? null,
+          suspended_reason: (profileData as any).suspended_reason ?? null,
         };
         setMember(m);
         setPhoneValue(profileData.phone_number ? profileData.phone_number.replace(/^254/, '0') : '');
@@ -231,6 +239,51 @@ export default function MemberDetailPage() {
       fetchMemberDetails();
     } catch (e) {
       toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleSuspension = async () => {
+    if (!member || !user) return;
+    const willSuspend = !member.is_suspended;
+    if (willSuspend && !suspendReason.trim()) {
+      toast({ title: 'Reason required', description: 'Please provide a reason for the suspension.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const update: any = willSuspend
+        ? { is_suspended: true, suspended_at: new Date().toISOString(), suspended_reason: suspendReason.trim() }
+        : { is_suspended: false, suspended_at: null, suspended_reason: null };
+      const { error } = await supabase.from('profiles').update(update).eq('user_id', member.user_id);
+      if (error) throw error;
+
+      // Notify member in-app
+      try {
+        await createAdminMessage({
+          userId: member.user_id,
+          adminId: user.id,
+          message: willSuspend
+            ? `Your account has been suspended. Reason: ${suspendReason.trim()}. Please contact the admin.`
+            : `Your account has been reactivated. Welcome back!`,
+        });
+      } catch {}
+
+      await logAdminAction(
+        user.id,
+        willSuspend ? 'suspend_member' : 'reactivate_member',
+        'profile',
+        member.user_id,
+        willSuspend ? `Suspended ${member.full_name}: ${suspendReason.trim()}` : `Reactivated ${member.full_name}`,
+      );
+
+      toast({ title: willSuspend ? 'Member suspended' : 'Member reactivated' });
+      setShowSuspendDialog(false);
+      setSuspendReason('');
+      fetchMemberDetails();
+    } catch (e) {
+      toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed', variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -484,7 +537,70 @@ export default function MemberDetailPage() {
               </div>
             </div>
 
-            {/* Last Activity */}
+            {/* Account Status (Suspend / Reactivate) */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <UserX className={`w-3.5 h-3.5 ${member.is_suspended ? 'text-destructive' : 'text-muted-foreground'}`} />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">Account Status</span>
+                </div>
+                <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${member.is_suspended ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                  {member.is_suspended ? 'Suspended' : 'Active'}
+                </span>
+              </div>
+
+              {member.is_suspended && member.suspended_reason && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  Reason: {member.suspended_reason}
+                  {member.suspended_at && ` · ${format(parseISO(member.suspended_at), 'MMM d, yyyy')}`}
+                </p>
+              )}
+
+              {showSuspendDialog && !member.is_suspended ? (
+                <div className="space-y-2 mt-2">
+                  <Label htmlFor="suspend-reason" className="text-xs">Reason for suspension</Label>
+                  <textarea
+                    id="suspend-reason"
+                    value={suspendReason}
+                    onChange={(e) => setSuspendReason(e.target.value)}
+                    placeholder="e.g. Repeated late contributions, requested break..."
+                    maxLength={300}
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleToggleSuspension}
+                      disabled={saving || !suspendReason.trim()}
+                      className="flex-1 py-2 bg-destructive text-destructive-foreground text-sm font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50"
+                    >
+                      Confirm Suspend
+                    </button>
+                    <button
+                      onClick={() => { setShowSuspendDialog(false); setSuspendReason(''); }}
+                      className="flex-1 py-2 bg-secondary text-foreground text-sm font-semibold rounded-xl hover:bg-muted transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (member.is_suspended) handleToggleSuspension();
+                    else setShowSuspendDialog(true);
+                  }}
+                  disabled={saving}
+                  className={`w-full mt-1 py-2 text-sm font-semibold rounded-xl transition disabled:opacity-50 ${
+                    member.is_suspended
+                      ? 'bg-primary text-primary-foreground hover:opacity-90'
+                      : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                  }`}
+                >
+                  {member.is_suspended ? 'Reactivate Account' : 'Suspend Account'}
+                </button>
+              )}
+            </div>
+
             <div className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
