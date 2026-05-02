@@ -286,6 +286,8 @@ export default function MemberDetailPage() {
       setSaving(false);
     }
   };
+
+  const handleSendQuickMessage = async () => {
     if (!member || !user || !quickMessage.trim()) return;
     setSendingMessage(true);
     try {
