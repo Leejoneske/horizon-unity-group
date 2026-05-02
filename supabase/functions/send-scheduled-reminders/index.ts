@@ -401,3 +401,72 @@ function json(body: unknown, status = 200) {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
+
+function daysBetween(fromIso: string, toIso: string) {
+  const [fy, fm, fd] = fromIso.split('-').map(Number);
+  const [ty, tm, td] = toIso.split('-').map(Number);
+  const a = Date.UTC(fy, fm - 1, fd);
+  const b = Date.UTC(ty, tm - 1, td);
+  return Math.round((b - a) / 86400000);
+}
+
+async function autoEndCycle(
+  supabase: any,
+  supabaseUrl: string,
+  anonKey: string | undefined,
+  cycle: CycleRow,
+) {
+  const { data: contribs } = await supabase
+    .from('contributions')
+    .select('user_id, amount')
+    .gte('contribution_date', cycle.start_date)
+    .lte('contribution_date', cycle.end_date);
+
+  const userTotals = new Map<string, number>();
+  let totalSavings = 0;
+  for (const c of contribs ?? []) {
+    const amt = Number(c.amount);
+    totalSavings += amt;
+    userTotals.set(c.user_id, (userTotals.get(c.user_id) || 0) + amt);
+  }
+
+  await supabase.from('profiles').update({ balance_visible: true }).neq('user_id', '');
+  await supabase
+    .from('savings_cycles')
+    .update({ status: 'ended', total_savings: totalSavings })
+    .eq('id', cycle.id);
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('user_id, full_name, phone_number');
+
+  let sent = 0;
+  let failed = 0;
+  for (const p of profiles ?? []) {
+    if (!p.phone_number) continue;
+    const userTotal = userTotals.get(p.user_id) || 0;
+    const message = `Hi ${p.full_name}! The savings cycle "${cycle.cycle_name}" has ended. Your total contributions: KES ${userTotal.toLocaleString()}. Your balance is now visible on your dashboard. Well done! 🏆`;
+    const ok = await sendSms({ anonKey, message, phoneNumber: p.phone_number, supabaseUrl });
+    if (ok) sent += 1; else failed += 1;
+  }
+
+  return { cycle_id: cycle.id, total_savings: totalSavings, sms_sent: sent, sms_failed: failed };
+}
+
+async function sendCycleEndingSoonNotices(
+  supabase: any,
+  supabaseUrl: string,
+  anonKey: string | undefined,
+  cycle: CycleRow,
+  daysLeft: number,
+) {
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('full_name, phone_number');
+  for (const p of profiles ?? []) {
+    if (!p.phone_number) continue;
+    const message = `Hi ${p.full_name}! The savings cycle "${cycle.cycle_name}" ends in ${daysLeft} day${daysLeft > 1 ? 's' : ''}. Make sure to complete any remaining contributions before it closes! ⏰`;
+    await sendSms({ anonKey, message, phoneNumber: p.phone_number, supabaseUrl });
+  }
+}
+
