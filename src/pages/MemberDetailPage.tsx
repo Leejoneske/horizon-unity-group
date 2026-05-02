@@ -116,7 +116,10 @@ export default function MemberDetailPage() {
           balance_visible: profileData.balance_visible,
           daily_contribution_amount: profileData.daily_contribution_amount,
           balance_adjustment: profileData.balance_adjustment || 0,
-          missed_contributions: missedDays
+          missed_contributions: missedDays,
+          is_suspended: (profileData as any).is_suspended ?? false,
+          suspended_at: (profileData as any).suspended_at ?? null,
+          suspended_reason: (profileData as any).suspended_reason ?? null,
         };
         setMember(m);
         setPhoneValue(profileData.phone_number ? profileData.phone_number.replace(/^254/, '0') : '');
