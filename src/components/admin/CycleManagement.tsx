@@ -102,11 +102,17 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
     try {
       const { data: contributions } = await supabase
         .from('contributions')
-        .select('amount')
+        .select('user_id, amount')
         .gte('contribution_date', cycle.start_date)
         .lte('contribution_date', cycle.end_date);
 
       const totalSavings = contributions?.reduce((sum, c) => sum + Number(c.amount), 0) || 0;
+
+      // Per-user totals
+      const userTotals = new Map<string, number>();
+      (contributions || []).forEach(c => {
+        userTotals.set(c.user_id, (userTotals.get(c.user_id) || 0) + Number(c.amount));
+      });
 
       // Reveal all balances
       await supabase
@@ -120,15 +126,20 @@ export default function CycleManagement({ adminId }: CycleManagementProps) {
         .update({ status: 'ended', total_savings: totalSavings })
         .eq('id', cycle.id);
 
-      // Send cycle ended SMS to all members
+      // Send cycle ended SMS to each member with their own total
       try {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('phone_number, full_name');
+          .select('user_id, phone_number, full_name');
         if (profiles) {
           const smsPromises = profiles
             .filter(p => p.phone_number)
-            .map(p => sendCycleEndedSMS(p.phone_number!, p.full_name, cycle.cycle_name, totalSavings));
+            .map(p => sendCycleEndedSMS(
+              p.phone_number!,
+              p.full_name,
+              cycle.cycle_name,
+              userTotals.get(p.user_id) || 0
+            ));
           await Promise.allSettled(smsPromises);
         }
       } catch (smsErr) {
