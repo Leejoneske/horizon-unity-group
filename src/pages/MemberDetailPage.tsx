@@ -242,7 +242,50 @@ export default function MemberDetailPage() {
     }
   };
 
-  const handleSendQuickMessage = async () => {
+  const handleToggleSuspension = async () => {
+    if (!member || !user) return;
+    const willSuspend = !member.is_suspended;
+    if (willSuspend && !suspendReason.trim()) {
+      toast({ title: 'Reason required', description: 'Please provide a reason for the suspension.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const update: any = willSuspend
+        ? { is_suspended: true, suspended_at: new Date().toISOString(), suspended_reason: suspendReason.trim() }
+        : { is_suspended: false, suspended_at: null, suspended_reason: null };
+      const { error } = await supabase.from('profiles').update(update).eq('user_id', member.user_id);
+      if (error) throw error;
+
+      // Notify member in-app
+      try {
+        await createAdminMessage({
+          userId: member.user_id,
+          adminId: user.id,
+          message: willSuspend
+            ? `Your account has been suspended. Reason: ${suspendReason.trim()}. Please contact the admin.`
+            : `Your account has been reactivated. Welcome back!`,
+        });
+      } catch {}
+
+      await logAdminAction(
+        user.id,
+        willSuspend ? 'suspend_member' : 'reactivate_member',
+        'profile',
+        member.user_id,
+        willSuspend ? `Suspended ${member.full_name}: ${suspendReason.trim()}` : `Reactivated ${member.full_name}`,
+      );
+
+      toast({ title: willSuspend ? 'Member suspended' : 'Member reactivated' });
+      setShowSuspendDialog(false);
+      setSuspendReason('');
+      fetchMemberDetails();
+    } catch (e) {
+      toast({ title: 'Error', description: e instanceof Error ? e.message : 'Failed', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
     if (!member || !user || !quickMessage.trim()) return;
     setSendingMessage(true);
     try {
