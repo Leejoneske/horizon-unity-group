@@ -112,10 +112,10 @@ export const sendCycleEndedSMS = async (
   phoneNumber: string,
   userName: string,
   cycleName: string,
-  totalSavings: number
+  userTotal: number
 ): Promise<boolean> => {
   try {
-    const message = `Hi ${userName}! The savings cycle "${cycleName}" has ended. Group total: KES ${totalSavings.toLocaleString()}. Your balance is now visible on your dashboard. Well done! 🏆`;
+    const message = `Hi ${userName}! The savings cycle "${cycleName}" has ended. Your total contributions: KES ${userTotal.toLocaleString()}. Your balance is now visible on your dashboard. Well done! 🏆`;
     return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('Failed to send cycle ended SMS:', error);
