@@ -537,7 +537,70 @@ export default function MemberDetailPage() {
               </div>
             </div>
 
-            {/* Last Activity */}
+            {/* Account Status (Suspend / Reactivate) */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <UserX className={`w-3.5 h-3.5 ${member.is_suspended ? 'text-destructive' : 'text-muted-foreground'}`} />
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">Account Status</span>
+                </div>
+                <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${member.is_suspended ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                  {member.is_suspended ? 'Suspended' : 'Active'}
+                </span>
+              </div>
+
+              {member.is_suspended && member.suspended_reason && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  Reason: {member.suspended_reason}
+                  {member.suspended_at && ` · ${format(parseISO(member.suspended_at), 'MMM d, yyyy')}`}
+                </p>
+              )}
+
+              {showSuspendDialog && !member.is_suspended ? (
+                <div className="space-y-2 mt-2">
+                  <Label htmlFor="suspend-reason" className="text-xs">Reason for suspension</Label>
+                  <textarea
+                    id="suspend-reason"
+                    value={suspendReason}
+                    onChange={(e) => setSuspendReason(e.target.value)}
+                    placeholder="e.g. Repeated late contributions, requested break..."
+                    maxLength={300}
+                    className="w-full p-3 rounded-xl border border-border bg-background text-foreground text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleToggleSuspension}
+                      disabled={saving || !suspendReason.trim()}
+                      className="flex-1 py-2 bg-destructive text-destructive-foreground text-sm font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50"
+                    >
+                      Confirm Suspend
+                    </button>
+                    <button
+                      onClick={() => { setShowSuspendDialog(false); setSuspendReason(''); }}
+                      className="flex-1 py-2 bg-secondary text-foreground text-sm font-semibold rounded-xl hover:bg-muted transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (member.is_suspended) handleToggleSuspension();
+                    else setShowSuspendDialog(true);
+                  }}
+                  disabled={saving}
+                  className={`w-full mt-1 py-2 text-sm font-semibold rounded-xl transition disabled:opacity-50 ${
+                    member.is_suspended
+                      ? 'bg-primary text-primary-foreground hover:opacity-90'
+                      : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                  }`}
+                >
+                  {member.is_suspended ? 'Reactivate Account' : 'Suspend Account'}
+                </button>
+              )}
+            </div>
+
             <div className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
