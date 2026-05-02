@@ -62,6 +62,8 @@ export default function MemberDetailPage() {
   const [editingMissed, setEditingMissed] = useState(false);
   const [missedValue, setMissedValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showSuspendDialog, setShowSuspendDialog] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
 
   // Quick message
   const [showMessageBox, setShowMessageBox] = useState(false);
