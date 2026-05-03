@@ -39,6 +39,9 @@ interface Profile {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
+  is_suspended?: boolean;
+  suspended_reason?: string | null;
+  suspended_at?: string | null;
 }
 
 interface AdminMessage {
