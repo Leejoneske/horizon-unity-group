@@ -170,7 +170,7 @@ export default function UserDashboard() {
       const [profileRes, messagesRes, cycleRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
+          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions, is_suspended, suspended_reason, suspended_at')
           .eq('user_id', user!.id)
           .single(),
         supabase
