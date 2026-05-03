@@ -14,7 +14,9 @@ import {
   X,
   LogOut,
   Share2,
-  Phone
+  Phone,
+  ShieldAlert,
+  Mail
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +39,9 @@ interface Profile {
   daily_contribution_amount: number;
   balance_adjustment: number;
   missed_contributions: number;
+  is_suspended?: boolean;
+  suspended_reason?: string | null;
+  suspended_at?: string | null;
 }
 
 interface AdminMessage {
@@ -165,7 +170,7 @@ export default function UserDashboard() {
       const [profileRes, messagesRes, cycleRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
+          .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions, is_suspended, suspended_reason, suspended_at')
           .eq('user_id', user!.id)
           .single(),
         supabase
@@ -222,7 +227,7 @@ export default function UserDashboard() {
             .from('profiles')
             .update({ phone_number: phoneFromAuth })
             .eq('user_id', user.id)
-            .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
+            .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions, is_suspended, suspended_reason, suspended_at')
             .single();
 
           if (updated) profileData = updated;
@@ -495,6 +500,54 @@ export default function UserDashboard() {
                 <div>
                   <p className="font-semibold text-info text-sm">Verifying payment...</p>
                   <p className="text-xs text-info/70">Waiting for M-Pesa confirmation</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Suspension Banner */}
+          {profile?.is_suspended && (
+            <div className="px-4 pt-4">
+              <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-5 h-5 text-destructive" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-destructive text-base">Account Suspended</h3>
+                    <p className="text-sm text-foreground/80 mt-1">
+                      Your account has been temporarily suspended. Some features may be limited.
+                    </p>
+                    {profile.suspended_reason && (
+                      <div className="mt-3 bg-background/60 border border-destructive/20 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Reason</p>
+                        <p className="text-sm text-foreground">{profile.suspended_reason}</p>
+                      </div>
+                    )}
+                    {profile.suspended_at && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Since {format(parseISO(profile.suspended_at), 'PPP')}
+                      </p>
+                    )}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <a
+                        href={`mailto:${import.meta.env.VITE_ADMIN_EMAIL || 'admin@horizonunit.local'}?subject=Account%20Suspension%20Appeal&body=Hello%20Admin%2C%0A%0AI%20would%20like%20to%20discuss%20my%20suspended%20account.%0A%0AName%3A%20${encodeURIComponent(profile.full_name || '')}%0APhone%3A%20${encodeURIComponent(profile.phone_number || '')}%0A%0AThank%20you.`}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-full text-sm font-semibold hover:opacity-90 transition"
+                      >
+                        <Mail className="w-4 h-4" />
+                        Contact Admin
+                      </a>
+                      {profile.phone_number && (
+                        <a
+                          href="tel:+254700000000"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-full text-sm font-semibold hover:bg-secondary/80 transition"
+                        >
+                          <Phone className="w-4 h-4" />
+                          Call Support
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
