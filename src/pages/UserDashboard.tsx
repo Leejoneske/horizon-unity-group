@@ -14,7 +14,9 @@ import {
   X,
   LogOut,
   Share2,
-  Phone
+  Phone,
+  ShieldAlert,
+  Mail
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
