@@ -227,7 +227,7 @@ export default function UserDashboard() {
             .from('profiles')
             .update({ phone_number: phoneFromAuth })
             .eq('user_id', user.id)
-            .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions')
+            .select('full_name, phone_number, balance_visible, daily_contribution_amount, balance_adjustment, missed_contributions, is_suspended, suspended_reason, suspended_at')
             .single();
 
           if (updated) profileData = updated;
